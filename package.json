@@ -1,0 +1,12 @@
+{
+  "name": "curriculo-app",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter backend dev",
+    "build": "pnpm --filter backend build",
+    "test": "pnpm --filter backend test",
+    "lint": "pnpm --filter backend lint",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  }
+}

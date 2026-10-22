@@ -1,0 +1,196 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ResumeKind {
+  BASE
+  ADJUSTED
+}
+
+enum ResumeStatus {
+  DRAFT
+  SAVED
+}
+
+enum SuggestionKind {
+  EMPHASIS
+  FACT_QUESTION
+}
+
+enum SuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  ANSWERED
+}
+
+enum MessageType {
+  EMAIL
+  ANSWER
+}
+
+enum WritingTone {
+  OBJETIVO
+  DETALHADO
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  sessions        Session[]
+  resumes         Resume[]
+  tags            Tag[]
+  jobs            JobPosting[]
+  writingSettings WritingSettings?
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  refreshTokenHash String    @unique
+  familyId         String    @db.Uuid
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  userAgent        String?
+  ip               String?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model Resume {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid
+  title     String
+  kind      ResumeKind
+  status    ResumeStatus?
+  parentId  String?       @db.Uuid
+  jobId     String?       @db.Uuid
+  content   Json
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Resume?       @relation("ResumeAdjustments", fields: [parentId], references: [id], onDelete: SetNull)
+  children Resume[]      @relation("ResumeAdjustments")
+  job      JobPosting?   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  tags     ResumeTag[]
+  messages GeneratedMessage[]
+  analyses Analysis[]
+
+  @@index([userId, kind])
+  @@index([parentId])
+  @@index([jobId])
+}
+
+model Tag {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  name   String
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumes ResumeTag[]
+
+  @@unique([userId, name])
+}
+
+model ResumeTag {
+  resumeId String @db.Uuid
+  tagId    String @db.Uuid
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([resumeId, tagId])
+  @@index([tagId])
+}
+
+model JobPosting {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  rawText      String?
+  title        String
+  company      String?
+  contactEmail String?
+  extracted    Json
+  createdAt    DateTime @default(now())
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses Analysis[]
+  messages GeneratedMessage[]
+  adjusted Resume[]
+
+  @@index([userId, createdAt])
+}
+
+model Analysis {
+  id                  String   @id @default(uuid()) @db.Uuid
+  jobId               String   @db.Uuid
+  recommendedResumeId String   @db.Uuid
+  result              Json
+  model               String
+  inputTokens         Int
+  outputTokens        Int
+  createdAt           DateTime @default(now())
+
+  job               JobPosting   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recommendedResume Resume       @relation(fields: [recommendedResumeId], references: [id], onDelete: Cascade)
+  suggestions       Suggestion[]
+
+  @@index([jobId])
+}
+
+model Suggestion {
+  id            String           @id @default(uuid()) @db.Uuid
+  analysisId    String           @db.Uuid
+  kind          SuggestionKind
+  target        String
+  proposal      String
+  question      String?
+  answer        String?
+  status        SuggestionStatus @default(PENDING)
+  promoteToBase Boolean          @default(false)
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
+
+model GeneratedMessage {
+  id        String      @id @default(uuid()) @db.Uuid
+  jobId     String      @db.Uuid
+  resumeId  String      @db.Uuid
+  type      MessageType
+  question  String?
+  subject   String?
+  body      String
+  createdAt DateTime    @default(now())
+
+  job    JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resume Resume     @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+}
+
+model WritingSettings {
+  userId       String      @id @db.Uuid
+  instructions String      @default("")
+  tone         WritingTone @default(OBJETIVO)
+  opening      String?
+  signature    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
