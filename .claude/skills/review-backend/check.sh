@@ -139,7 +139,7 @@ report "18. Dependência sem versão exata (^ ou ~)" "$(
 
 report "19. Variável do env.schema ausente no .env.example" "$(
   for key in $(grep -oE '^[[:space:]]+[A-Z][A-Z0-9_]+:' $SRC/config/env.schema.ts | tr -d ' :'); do
-    grep -q "^$key=" .env.example || echo "$key"
+    grep -q "^$key=" backend/.env.example || echo "$key"
   done
 )"
 
@@ -186,6 +186,16 @@ report "23. else / else if (use early return)" "$(
 report "24. Logger do Nest usado fora de core/logger (use AppLogger)" "$(
   grep -rnE "new Logger\(|Logger[,} ].*from '@nestjs/common'" $SRC --include=*.ts |
     grep -v -E "^$SRC/(core/logger|generated)/|\.spec\.ts"
+)"
+
+report "25. TODO(scaffold) não resolvido (módulo gerado pelo create-new-module-backend)" "$(
+  grep -rn "TODO(scaffold)" $TARGET backend/test --include=*.ts
+)"
+
+report "26. .env versionado ou segredo literal fora do .env.example" "$(
+  git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'
+  git grep -nIE "(SECRET|API_KEY|PASSWORD|TOKEN)[A-Z_]*=[^[:space:]]{6,}" -- . \
+    ':!*.env.example' ':!*.md' ':!*.spec.ts' ':!backend/test' ':!.claude' 2>/dev/null
 )"
 
 echo "== $count achado(s) nas checagens objetivas =="

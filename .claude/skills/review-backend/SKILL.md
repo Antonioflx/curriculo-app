@@ -63,7 +63,7 @@ Decorator existe para tirar código transversal do corpo dos métodos. Cobre `tr
 ### Performance e configuração
 - Lista sem `take` ou sem paginação (item 20) vira problema com o tempo.
 - Filtro ou ordenação novos pedem `@@index` no `schema.prisma`; mudança de schema vem com migration nova (nunca editar migration já aplicada).
-- Variável de ambiente nova: `env.schema.ts` **e** `.env.example`.
+- Variável de ambiente nova: `env.schema.ts` **e** `backend/.env.example`.
 - Evite N+1: relação lida em loop deve virar `include`/`select` numa só query.
 
 ### Quando o módulo existir
