@@ -22,6 +22,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         userId: request.user?.userId,
         error: exception instanceof Error ? exception.message : 'unknown',
       });
+    } else if (statusCode === HttpStatus.FORBIDDEN || (statusCode === HttpStatus.NOT_FOUND && request.user)) {
+      // A09: 403 e 404 de quem está logado (recurso alheio) ficam registrados, sem conteúdo.
+      this.events.warn('access_denied', {
+        statusCode,
+        userId: request.user?.userId,
+        requestId: request.id,
+        method: request.method,
+        path: request.path,
+      });
     }
 
     response.status(statusCode).json({ statusCode, message, requestId: request.id });

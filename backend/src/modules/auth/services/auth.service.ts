@@ -5,7 +5,7 @@ import { AuthUser } from '@/common/types/app-request';
 import { UsersService } from '@/modules/users/services/users.service';
 import {
   INVALID_CREDENTIALS_MESSAGE,
-  INVALID_SESSION_MESSAGE,
+  invalidSession,
   REFRESH_TTL_SECONDS,
 } from '../constants/auth.constants';
 import { LoginDto } from '../dto/login.dto';
@@ -53,9 +53,9 @@ export class AuthService {
 
   async refresh(refreshToken: string, meta: RequestMeta): Promise<SessionTokens> {
     const current = await this.sessions.findByRefreshHash(this.tokens.hashRefreshToken(refreshToken));
-    if (!current) throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    if (!current) throw invalidSession();
     if (current.revokedAt) return this.rejectReuse(current, meta);
-    if (current.expiresAt <= new Date()) throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    if (current.expiresAt <= new Date()) throw invalidSession();
 
     const next = this.buildSession(current.userId, current.familyId, meta);
     const rotated = await this.sessions.rotate(current.id, next.data);
@@ -75,7 +75,7 @@ export class AuthService {
       typeof payload.sub === 'string' &&
       typeof payload.sid === 'string' &&
       (await this.sessions.findActive(payload.sid, payload.sub));
-    if (!active) throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    if (!active) throw invalidSession();
     return { userId: payload.sub, sessionId: payload.sid };
   }
 
@@ -107,6 +107,6 @@ export class AuthService {
       ip: meta.ip,
       requestId: meta.requestId,
     });
-    throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    throw invalidSession();
   }
 }

@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import { ResumeKind } from '@/common/enums';
+import { assertBelowLimit } from '@/common/utils/limit.utils';
 import { TagsService } from '@/modules/tags/services/tags.service';
 import {
   COPY_SUFFIX,
   MAX_BASE_RESUMES_PER_USER,
+  ONLY_BASE_HAS_TAGS_MESSAGE,
   RESUME_NOT_FOUND_MESSAGE,
   RESUME_TITLE_MAX,
 } from '../constants/resume.constants';
@@ -37,16 +39,10 @@ export class ResumesService {
   }
 
   async update(userId: string, id: string, dto: UpdateResumeDto) {
-    let tagIds: string[] | undefined;
-    if (dto.tagIds) {
-      const current = await this.get(userId, id);
-      if (current.kind !== ResumeKind.BASE) throw new BadRequestException('Só currículos base têm tags');
-      tagIds = await this.tags.assertOwned(userId, dto.tagIds);
-    }
     return this.resumes.update(userId, id, {
       title: dto.title,
       content: dto.content && instanceToPlain(dto.content),
-      tagIds,
+      tagIds: await this.resolveTagIds(userId, id, dto.tagIds),
     });
   }
 
@@ -66,8 +62,14 @@ export class ResumesService {
   }
 
   private async assertUnderLimit(userId: string) {
-    if ((await this.resumes.countBase(userId)) >= MAX_BASE_RESUMES_PER_USER) {
-      throw new BadRequestException(`Limite de ${MAX_BASE_RESUMES_PER_USER} currículos base atingido`);
-    }
+    assertBelowLimit(await this.resumes.countBase(userId), MAX_BASE_RESUMES_PER_USER, 'currículos base');
+  }
+
+  /** `undefined` = não mexer nas tags. Tags só existem em currículo base e precisam ser do usuário. */
+  private async resolveTagIds(userId: string, id: string, tagIds?: string[]) {
+    if (!tagIds) return undefined;
+    const current = await this.get(userId, id);
+    if (current.kind !== ResumeKind.BASE) throw new BadRequestException(ONLY_BASE_HAS_TAGS_MESSAGE);
+    return this.tags.assertOwned(userId, tagIds);
   }
 }

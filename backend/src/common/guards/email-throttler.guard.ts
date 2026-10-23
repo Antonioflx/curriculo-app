@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ThrottlerGuard, ThrottlerRequest } from '@nestjs/throttler';
+import { normalizeText } from '../utils/text.utils';
 
 const EMAIL_LIMIT = 5;
 
@@ -11,7 +12,7 @@ const EMAIL_LIMIT = 5;
 export class EmailThrottlerGuard extends ThrottlerGuard {
   protected override getTracker(req: Record<string, unknown>): Promise<string> {
     const body = req.body as { email?: unknown } | undefined;
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : null;
+    const email = typeof body?.email === 'string' ? normalizeText(body.email, { lowercase: true }) : null;
     return Promise.resolve(email ? `email:${email}` : `ip:${String(req.ip)}`);
   }
 

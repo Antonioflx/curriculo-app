@@ -7,7 +7,6 @@ import {
   Post,
   Req,
   Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -19,7 +18,7 @@ import type { AppRequest, AuthUser } from '@/common/types/app-request';
 import { UserResponseDto } from '@/modules/users/dto/user-response.dto';
 import { UsersService } from '@/modules/users/services/users.service';
 import { AuthCookiesService } from './services/auth-cookies.service';
-import { INVALID_SESSION_MESSAGE, REFRESH_COOKIE } from './constants/auth.constants';
+import { invalidSession, REFRESH_COOKIE } from './constants/auth.constants';
 import type { RequestMeta } from './types/auth.types';
 import { AuthService } from './services/auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
@@ -75,7 +74,7 @@ export class AuthController {
   async refresh(@Req() req: AppRequest, @Res({ passthrough: true }) res: Response): Promise<void> {
     const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
     try {
-      if (!refreshToken) throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+      if (!refreshToken) throw invalidSession();
       this.cookies.set(res, await this.auth.refresh(refreshToken, metaFrom(req)));
     } catch (error) {
       this.cookies.clear(res);

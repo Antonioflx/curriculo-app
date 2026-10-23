@@ -2,6 +2,8 @@ import { applyDecorators } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsObject, IsString, MaxLength, ValidateNested } from 'class-validator';
 
+import { normalizeText } from '../utils/text.utils';
+
 type Constructor = new (...args: never[]) => object;
 
 /** String com limite de tamanho. */
@@ -20,8 +22,4 @@ export const NestedList = (type: Constructor, maxItems: number) =>
 
 /** Remove espaços das pontas e, opcionalmente, normaliza para minúsculas. */
 export const Trim = (options: { lowercase?: boolean } = {}) =>
-  Transform(({ value }: { value: unknown }) => {
-    if (typeof value !== 'string') return value;
-    const trimmed = value.trim();
-    return options.lowercase ? trimmed.toLowerCase() : trimmed;
-  });
+  Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? normalizeText(value, options) : value));

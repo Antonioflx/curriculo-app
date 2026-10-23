@@ -26,6 +26,7 @@ Sem argumento, varre todos os módulos. Trate cada item listado como achado. O s
 
 ### Repetição (compare com o que já existe)
 Antes de aprovar código novo, procure se já existe algo igual: `grep` em `common/`, `prisma/` e nos outros módulos.
+- Checagem de vazio (`.length === 0`, `!x?.length`) em vez de `isEmpty`/`isNotEmpty` de `@/common/utils/empty.utils`? Atenção: `if (arr)` testa "informado", não "não vazio"; não troque sem checar a semântica.
 - Reimplementou algo de `common/` (logger, guards, tipos) ou de outro service?
 - Mesmo bloco em 2+ lugares (validação, mapeamento DTO, montagem de resposta, `try/catch`)? Extraia para helper, decorator ou classe base.
 - DTOs com os mesmos campos/transforms copiados? Use herança ou decorator composto.

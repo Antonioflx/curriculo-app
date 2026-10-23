@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { USER_NOT_FOUND_MESSAGE } from '../constants/user.constants';
 import { UsersRepository } from '../repositories/users.repository';
 import { CreateUserData } from '../types/user.types';
 
@@ -16,7 +17,7 @@ export class UsersService {
 
   async getById(id: string) {
     const user = await this.users.findById(id);
-    if (!user) throw new NotFoundException('Usuário não encontrado');
+    if (!user) throw new NotFoundException(USER_NOT_FOUND_MESSAGE);
     return user;
   }
 }
