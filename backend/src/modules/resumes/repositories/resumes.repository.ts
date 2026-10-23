@@ -4,11 +4,7 @@ import { Prisma } from '@/generated/prisma/client';
 import { HandlePrismaErrors } from '@/prisma/decorators/handle-prisma-errors.decorator';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RESUME_ERRORS, RESUME_LIST_LIMIT } from '../constants/resume.constants';
-import type {
-  CreateResumeData,
-  ListResumesFilter,
-  UpdateResumeData,
-} from '../types/resume.types';
+import type { CreateResumeData, ListResumesFilter, UpdateResumeData } from '../types/resume.types';
 
 const WITH_TAGS = { tags: { select: { tag: { select: { id: true, name: true } } } } } as const;
 

@@ -79,6 +79,7 @@ src/
 ├── main.ts
 ├── app.module.ts
 ├── common/            # guards, filters, interceptors, decorators, pipes
+├── core/              # serviços globais da aplicação (logger)
 ├── config/            # validação das variáveis de ambiente
 ├── prisma/            # PrismaService
 └── modules/
@@ -124,6 +125,7 @@ Organização do módulo:
 
 Regras:
 - **Controller** não tem regra de negócio. **Service** não usa `PrismaService` nem monta query. **Repository** não tem regra de negócio.
+- Logs só pelo `AppLogger` de `@/core/logger` (`this.logger.info|warn|error('evento', { ids })`); nunca `console.*` nem `Logger` do Nest direto. Chaves sensíveis (senha, token, `content`, `rawText`) são mascaradas, mas passe só ids.
 - Enums do Prisma entram na aplicação só por `@/common/enums`; services e DTOs nunca importam de `@/generated`.
 - Toda dependência entra pelo construtor (injeção do Nest). Services dependem de classes injetáveis, o que permite mockar nos testes.
 - Toda query de dado do usuário filtra por `userId` **no repository** (ver docs/seguranca.md).
@@ -141,6 +143,9 @@ Regras:
 ## Convenções gerais
 
 - TypeScript `strict` nos dois apps.
+- Formatação por Biome (aspas simples, 120 colunas, 2 espaços); não discuta estilo em review, rode `pnpm format`.
+- Dado não confiável (payload de JWT, body, cookie) é validado na borda (DTO, strategy, guard); o service recebe tipos já corretos e não repete `typeof`. Use `@/common/utils` (`type`, `empty`, `text`, `date`, `limit`) em vez de reescrever checagens e formatações.
+- Sem `else if`/`else` encadeado: use guard clauses com early return (`if (...) return;` / `throw`) e métodos privados pequenos.
 - Conventional Commits (`feat:`, `fix:`, `chore:`...) e branches por feature.
 - Testes com Jest: services e repositories no backend; hooks e componentes críticos no frontend.
 - Nomes de código em inglês; textos da interface em português.
@@ -153,6 +158,7 @@ Na raiz (copie `.env.example` para `.env` antes):
 - `pnpm db:up` / `pnpm db:down`: sobe e derruba o Postgres local (Docker).
 - `pnpm dev`: backend em modo watch (porta 3001, prefixo `/api`).
 - `pnpm test`, `pnpm lint`, `pnpm build`: delegam ao backend.
+- `pnpm format` / `pnpm format:check`: Biome (só formatador) em cada app, cada um com o próprio `biome.json` (`backend/biome.json` hoje; o `frontend/` terá o dele). Rode `pnpm format` antes de pedir commit.
 - `pnpm --filter backend test:e2e`: e2e (precisa do Postgres no ar).
 - `pnpm --filter backend prisma:migrate`: cria/aplica migrations. Depois, `pnpm --filter backend prisma:generate` (o Prisma 7 não gera o client sozinho; ele sai em `src/generated`, ignorado pelo git).
 

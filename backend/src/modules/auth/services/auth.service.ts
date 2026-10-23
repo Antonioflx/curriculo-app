@@ -1,17 +1,14 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { EventLogger } from '@/common/logging/event-logger';
+import { AppLogger } from '@/core/logger/services/app-logger.service';
 import { AuthUser } from '@/common/types/app-request';
+import { addSeconds, isPast } from '@/common/utils/date.utils';
 import { UsersService } from '@/modules/users/services/users.service';
-import {
-  INVALID_CREDENTIALS_MESSAGE,
-  invalidSession,
-  REFRESH_TTL_SECONDS,
-} from '../constants/auth.constants';
+import { INVALID_CREDENTIALS_MESSAGE, invalidSession, REFRESH_TTL_SECONDS } from '../constants/auth.constants';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { SessionsRepository } from '../repositories/sessions.repository';
-import { CreateSessionData, JwtPayload, RequestMeta, SessionTokens } from '../types/auth.types';
+import { CreateSessionData, RequestMeta, SessionTokens } from '../types/auth.types';
 import { PasswordService } from './password.service';
 import { TokensService } from './tokens.service';
 
@@ -24,7 +21,7 @@ export class AuthService {
     private readonly sessions: SessionsRepository,
     private readonly passwords: PasswordService,
     private readonly tokens: TokensService,
-    private readonly events: EventLogger,
+    private readonly logger: AppLogger,
   ) {}
 
   async register(dto: RegisterDto, meta: RequestMeta) {
@@ -34,7 +31,7 @@ export class AuthService {
     const passwordHash = await this.passwords.hash(dto.password);
     const user = await this.users.create({ name: dto.name, email: dto.email, passwordHash });
 
-    this.events.info('register', { userId: user.id, requestId: meta.requestId });
+    this.logger.info('register', { userId: user.id, requestId: meta.requestId });
     return { user, tokens: await this.startSession(user.id, randomUUID(), meta) };
   }
 
@@ -43,11 +40,11 @@ export class AuthService {
     const valid = await this.passwords.verify(user?.passwordHash ?? null, dto.password);
 
     if (!user || !valid) {
-      this.events.warn('login_failed', { userId: user?.id, ip: meta.ip, requestId: meta.requestId });
+      this.logger.warn('login_failed', { userId: user?.id, ip: meta.ip, requestId: meta.requestId });
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    this.events.info('login', { userId: user.id, requestId: meta.requestId });
+    this.logger.info('login', { userId: user.id, requestId: meta.requestId });
     return { user, tokens: await this.startSession(user.id, randomUUID(), meta) };
   }
 
@@ -55,7 +52,7 @@ export class AuthService {
     const current = await this.sessions.findByRefreshHash(this.tokens.hashRefreshToken(refreshToken));
     if (!current) throw invalidSession();
     if (current.revokedAt) return this.rejectReuse(current, meta);
-    if (current.expiresAt <= new Date()) throw invalidSession();
+    if (isPast(current.expiresAt)) throw invalidSession();
 
     const next = this.buildSession(current.userId, current.familyId, meta);
     const rotated = await this.sessions.rotate(current.id, next.data);
@@ -66,17 +63,14 @@ export class AuthService {
 
   async logout(auth: AuthUser, meta: RequestMeta) {
     await this.sessions.revokeFamilyOf(auth.sessionId, auth.userId);
-    this.events.info('logout', { userId: auth.userId, requestId: meta.requestId });
+    this.logger.info('logout', { userId: auth.userId, requestId: meta.requestId });
   }
 
   /** Chamado pela estratégia JWT a cada requisição: sessão revogada ou expirada fecha o acesso. */
-  async validateSession(payload: JwtPayload): Promise<AuthUser> {
-    const active =
-      typeof payload.sub === 'string' &&
-      typeof payload.sid === 'string' &&
-      (await this.sessions.findActive(payload.sid, payload.sub));
+  async validateSession(userId: string, sessionId: string): Promise<AuthUser> {
+    const active = await this.sessions.findActive(sessionId, userId);
     if (!active) throw invalidSession();
-    return { userId: payload.sub, sessionId: payload.sid };
+    return { userId, sessionId };
   }
 
   private async startSession(userId: string, familyId: string, meta: RequestMeta): Promise<SessionTokens> {
@@ -91,7 +85,7 @@ export class AuthService {
       userId,
       familyId,
       refreshTokenHash: this.tokens.hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + REFRESH_TTL_SECONDS * 1000),
+      expiresAt: addSeconds(new Date(), REFRESH_TTL_SECONDS),
       userAgent: meta.userAgent,
       ip: meta.ip,
     };
@@ -101,7 +95,7 @@ export class AuthService {
   /** Refresh já usado: pode ser roubo. Revoga a família inteira. */
   private async rejectReuse(session: SessionRecord, meta: RequestMeta): Promise<never> {
     await this.sessions.revokeFamily(session.familyId);
-    this.events.warn('refresh_reuse_detected', {
+    this.logger.warn('refresh_reuse_detected', {
       userId: session.userId,
       familyId: session.familyId,
       ip: meta.ip,

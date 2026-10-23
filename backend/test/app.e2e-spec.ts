@@ -79,9 +79,7 @@ describe('App (e2e)', () => {
       await register(email).expect(201);
       await register(email).expect(409);
 
-      await post('/api/auth/register')
-        .send({ name: 'Ana', email: newEmail(), password: 'password123' })
-        .expect(400);
+      await post('/api/auth/register').send({ name: 'Ana', email: newEmail(), password: 'password123' }).expect(400);
 
       await post('/api/auth/register')
         .send({ name: 'Ana', email: newEmail(), password: 'Segredo!2026', role: 'admin' })
@@ -89,10 +87,7 @@ describe('App (e2e)', () => {
     });
 
     it('bloqueia POST sem Origin (CSRF)', async () => {
-      await request(server())
-        .post('/api/auth/login')
-        .send({ email: 'a@a.com', password: 'Segredo!2026' })
-        .expect(403);
+      await request(server()).post('/api/auth/login').send({ email: 'a@a.com', password: 'Segredo!2026' }).expect(403);
     });
 
     it('login com erro devolve a mesma mensagem para e-mail inexistente e senha errada', async () => {
@@ -154,8 +149,7 @@ describe('App (e2e)', () => {
 
     it('limita tentativas de login por e-mail', async () => {
       const email = newEmail();
-      const attempt = () =>
-        post('/api/auth/login').send({ email, password: 'SenhaErrada!1' });
+      const attempt = () => post('/api/auth/login').send({ email, password: 'SenhaErrada!1' });
 
       for (let i = 0; i < 5; i++) await attempt().expect(401);
       await attempt().expect(429);

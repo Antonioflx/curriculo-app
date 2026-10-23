@@ -103,7 +103,12 @@ describe('ResumesService', () => {
   });
 
   describe('duplicate', () => {
-    const source = { id: 'r1', title: 'Backend', content: resumeContent, tags: [{ tag: { id: 't1', name: 'backend' } }] };
+    const source = {
+      id: 'r1',
+      title: 'Backend',
+      content: resumeContent,
+      tags: [{ tag: { id: 't1', name: 'backend' } }],
+    };
 
     it('copia conteúdo e tags com o sufixo no título', async () => {
       repository.findById.mockResolvedValue(source);

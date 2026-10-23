@@ -1,5 +1,5 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { EventLogger } from '@/common/logging/event-logger';
+import { AppLogger } from '@/core/logger/services/app-logger.service';
 import { UsersService } from '@/modules/users/services/users.service';
 import { INVALID_CREDENTIALS_MESSAGE } from '../constants/auth.constants';
 import { AuthService } from './auth.service';
@@ -30,7 +30,7 @@ describe('AuthService', () => {
     sessions as unknown as SessionsRepository,
     passwords as unknown as PasswordService,
     tokens as unknown as TokensService,
-    events as unknown as EventLogger,
+    events as unknown as AppLogger,
   );
 
   beforeEach(() => {
@@ -145,24 +145,15 @@ describe('AuthService', () => {
   });
 
   describe('validateSession', () => {
-    it('aceita sessão ativa', async () => {
+    it('aceita sessão ativa do usuário', async () => {
       sessions.findActive.mockResolvedValue({ id: 's1' });
-      await expect(service.validateSession({ sub: 'u1', sid: 's1' })).resolves.toEqual({
-        userId: 'u1',
-        sessionId: 's1',
-      });
+      await expect(service.validateSession('u1', 's1')).resolves.toEqual({ userId: 'u1', sessionId: 's1' });
+      expect(sessions.findActive).toHaveBeenCalledWith('s1', 'u1');
     });
 
-    it('fecha o acesso quando a sessão foi revogada ou expirou', async () => {
+    it('fecha o acesso quando a sessão foi revogada, expirou ou é de outro usuário', async () => {
       sessions.findActive.mockResolvedValue(null);
-      await expect(service.validateSession({ sub: 'u1', sid: 's1' })).rejects.toBeInstanceOf(UnauthorizedException);
-    });
-
-    it('rejeita payload malformado sem consultar o banco', async () => {
-      await expect(
-        service.validateSession({ sub: 1, sid: null } as unknown as { sub: string; sid: string }),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
-      expect(sessions.findActive).not.toHaveBeenCalled();
+      await expect(service.validateSession('u1', 's1')).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 

@@ -21,10 +21,7 @@ describe('OriginGuard', () => {
     expect(guard.canActivate(contextFor(method, 'http://localhost:3000'))).toBe(true);
   });
 
-  it.each([undefined, 'http://evil.com', 'http://localhost:3000.evil.com'])(
-    'bloqueia POST com Origin %s',
-    (origin) => {
-      expect(() => guard.canActivate(contextFor('POST', origin))).toThrow(ForbiddenException);
-    },
-  );
+  it.each([undefined, 'http://evil.com', 'http://localhost:3000.evil.com'])('bloqueia POST com Origin %s', (origin) => {
+    expect(() => guard.canActivate(contextFor('POST', origin))).toThrow(ForbiddenException);
+  });
 });

@@ -1,13 +1,14 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
-import { EventLogger } from '../logging/event-logger';
+import { AppLogger } from '@/core/logger/services/app-logger.service';
+import { isString } from '../utils/type.utils';
 import { AppRequest } from '../types/app-request';
 
 const INTERNAL_MESSAGE = 'Erro interno do servidor';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  constructor(private readonly events: EventLogger) {}
+  constructor(private readonly logger: AppLogger) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const http = host.switchToHttp();
@@ -16,24 +17,36 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const { statusCode, message } = this.normalize(exception);
 
+    this.logEvent(exception, statusCode, request);
+
+    response.status(statusCode).json({ statusCode, message, requestId: request.id });
+  }
+
+  private logEvent(exception: unknown, statusCode: number, request: AppRequest) {
     if (statusCode >= 500) {
-      this.events.error('unhandled_exception', {
+      this.logger.error('unhandled_exception', {
         requestId: request.id,
         userId: request.user?.userId,
         error: exception instanceof Error ? exception.message : 'unknown',
       });
-    } else if (statusCode === HttpStatus.FORBIDDEN || (statusCode === HttpStatus.NOT_FOUND && request.user)) {
-      // A09: 403 e 404 de quem está logado (recurso alheio) ficam registrados, sem conteúdo.
-      this.events.warn('access_denied', {
-        statusCode,
-        userId: request.user?.userId,
-        requestId: request.id,
-        method: request.method,
-        path: request.path,
-      });
+      return;
     }
 
-    response.status(statusCode).json({ statusCode, message, requestId: request.id });
+    if (!this.isAccessDenied(statusCode, request)) return;
+
+    this.logger.warn('access_denied', {
+      statusCode,
+      userId: request.user?.userId,
+      requestId: request.id,
+      method: request.method,
+      path: request.path,
+    });
+  }
+
+  /** A09: 403 e 404 de quem está logado (recurso alheio) ficam registrados, sem conteúdo. */
+  private isAccessDenied(statusCode: number, request: AppRequest): boolean {
+    if (statusCode === HttpStatus.FORBIDDEN) return true;
+    return statusCode === HttpStatus.NOT_FOUND && !!request.user;
   }
 
   private normalize(exception: unknown): { statusCode: number; message: string | string[] } {
@@ -44,7 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (statusCode >= 500) return { statusCode, message: INTERNAL_MESSAGE };
 
     const body = exception.getResponse();
-    if (typeof body === 'string') return { statusCode, message: body };
+    if (isString(body)) return { statusCode, message: body };
     const message = (body as { message?: string | string[] }).message;
     return { statusCode, message: message ?? exception.message };
   }

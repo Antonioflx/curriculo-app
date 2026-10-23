@@ -22,8 +22,12 @@ describe('Tags e Resumes (e2e)', () => {
     (await client.post('/api/tags').send({ name }).expect(201)).body as { id: string; name: string };
 
   const createResume = async (client: ReturnType<typeof api>, extra: object = {}) =>
-    (await client.post('/api/resumes').send({ title: 'Backend', content: resumeContent, ...extra }).expect(201))
-      .body as { id: string; title: string; tags: { id: string }[] };
+    (
+      await client
+        .post('/api/resumes')
+        .send({ title: 'Backend', content: resumeContent, ...extra })
+        .expect(201)
+    ).body as { id: string; title: string; tags: { id: string }[] };
 
   it('exige login em todas as rotas', async () => {
     const anonymous = api(app);
@@ -80,7 +84,10 @@ describe('Tags e Resumes (e2e)', () => {
     it('valida o content: campo extra, link inválido e seção ausente dão 400', async () => {
       const send = (content: object) => ana.post('/api/resumes').send({ title: 'x', content });
       await send({ ...resumeContent, extra: 1 }).expect(400);
-      await send({ ...resumeContent, header: { ...resumeContent.header, links: [{ label: 'a', url: 'javascript:1' }] } }).expect(400);
+      await send({
+        ...resumeContent,
+        header: { ...resumeContent.header, links: [{ label: 'a', url: 'javascript:1' }] },
+      }).expect(400);
       const withoutSummary = omit(resumeContent, 'summary');
       await send(withoutSummary).expect(400);
     });
@@ -98,18 +105,30 @@ describe('Tags e Resumes (e2e)', () => {
 
     it('não aceita tag de outro usuário nem tag inexistente', async () => {
       const brunoTag = await createTag(bruno, 'segredo');
-      await ana.post('/api/resumes').send({ title: 'x', content: resumeContent, tagIds: [brunoTag.id] }).expect(404);
-      await ana.post('/api/resumes').send({ title: 'x', content: resumeContent, tagIds: [randomUUID()] }).expect(404);
+      await ana
+        .post('/api/resumes')
+        .send({ title: 'x', content: resumeContent, tagIds: [brunoTag.id] })
+        .expect(404);
+      await ana
+        .post('/api/resumes')
+        .send({ title: 'x', content: resumeContent, tagIds: [randomUUID()] })
+        .expect(404);
 
       const resume = await createResume(ana);
-      await ana.patch(`/api/resumes/${resume.id}`).send({ tagIds: [brunoTag.id] }).expect(404);
+      await ana
+        .patch(`/api/resumes/${resume.id}`)
+        .send({ tagIds: [brunoTag.id] })
+        .expect(404);
     });
 
     it('edita título e substitui as tags numa só chamada', async () => {
       const [a, b] = [await createTag(ana, 'tag-a'), await createTag(ana, 'tag-b')];
       const resume = await createResume(ana, { tagIds: [a.id] });
 
-      const updated = await ana.patch(`/api/resumes/${resume.id}`).send({ title: 'Novo', tagIds: [b.id] }).expect(200);
+      const updated = await ana
+        .patch(`/api/resumes/${resume.id}`)
+        .send({ title: 'Novo', tagIds: [b.id] })
+        .expect(200);
       expect(updated.body.title).toBe('Novo');
       expect(updated.body.tags).toEqual([{ id: b.id, name: 'tag-b' }]);
     });

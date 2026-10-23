@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { EventLogger } from '../logging/event-logger';
+import { AppLogger } from '@/core/logger/services/app-logger.service';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 function run(exception: unknown, request: object = {}) {
@@ -18,7 +18,7 @@ function run(exception: unknown, request: object = {}) {
     }),
   } as unknown as ArgumentsHost;
   const events = { error: jest.fn(), warn: jest.fn() };
-  new AllExceptionsFilter(events as unknown as EventLogger).catch(exception, host);
+  new AllExceptionsFilter(events as unknown as AppLogger).catch(exception, host);
   return { status: status.mock.calls[0][0], body: json.mock.calls[0][0], events };
 }
 

@@ -6,6 +6,8 @@
     "build": "pnpm --filter backend build",
     "test": "pnpm --filter backend test",
     "lint": "pnpm --filter backend lint",
+    "format": "pnpm -r --if-present format",
+    "format:check": "pnpm -r --if-present format:check",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down"
   }

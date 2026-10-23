@@ -17,10 +17,7 @@ export class ResumesController {
   }
 
   @Get()
-  async list(
-    @CurrentUser('userId') userId: string,
-    @Query() query: ListResumesQueryDto,
-  ): Promise<ResumeSummaryDto[]> {
+  async list(@CurrentUser('userId') userId: string, @Query() query: ListResumesQueryDto): Promise<ResumeSummaryDto[]> {
     return (await this.resumes.list(userId, query)).map((resume) => ResumeSummaryDto.from(resume));
   }
 
