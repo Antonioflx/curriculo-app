@@ -23,6 +23,9 @@ Sem argumento, varre todos os módulos. Trate cada item listado como achado. O s
 - Interface/type compartilhado em `types/`, não dentro do repository. `import type` para tipos em assinatura decorada.
 - Módulo usa outro só pelo service exportado.
 - Nomes de código em inglês, textos ao usuário em português.
+- Formatação é do Biome: rode `pnpm format:check`; não comente estilo.
+- Service com `typeof`/checagem de formato em dado que veio de fora? Mova para a borda (DTO, strategy, guard) e receba o tipo certo. Reuse `@/common/utils` (`type`, `empty`, `text`, `date`, `limit`).
+- Sem `else if`/`else`: use early return. O script lista ocorrências (item 23).
 
 ### Repetição (compare com o que já existe)
 Antes de aprovar código novo, procure se já existe algo igual: `grep` em `common/`, `prisma/` e nos outros módulos.

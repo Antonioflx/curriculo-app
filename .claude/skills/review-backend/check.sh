@@ -179,6 +179,15 @@ report "22. schema.prisma alterado sem migration nova" "$(
   fi
 )"
 
+report "23. else / else if (use early return)" "$(
+  grep -rnE "\belse\b" $TARGET --include=*.ts | grep -v -E "\.spec\.ts|//.*else|\*.*else"
+)"
+
+report "24. Logger do Nest usado fora de core/logger (use AppLogger)" "$(
+  grep -rnE "new Logger\(|Logger[,} ].*from '@nestjs/common'" $SRC --include=*.ts |
+    grep -v -E "^$SRC/(core/logger|generated)/|\.spec\.ts"
+)"
+
 echo "== $count achado(s) nas checagens objetivas =="
 echo "Informativo (revisar à mão): rotas @Public()"
 grep -rn "@Public()" $TARGET --include=*.controller.ts | sed 's/^/  /'
