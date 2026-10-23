@@ -1,10 +1,20 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Response } from 'express';
 import { AppLogger } from '@/core/logger/services/app-logger.service';
-import { isString } from '../utils/type.utils';
 import { AppRequest } from '../types/app-request';
+import { isString } from '../utils/type.utils';
 
 const INTERNAL_MESSAGE = 'Erro interno do servidor';
+const DEFAULT_CLIENT_ERROR_MESSAGE = 'Requisição inválida';
+const CLIENT_ERROR_MESSAGES: Record<number, string> = {
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'Corpo da requisição muito grande',
+  [HttpStatus.UNSUPPORTED_MEDIA_TYPE]: 'Tipo de conteúdo não suportado',
+};
+
+interface NormalizedError {
+  statusCode: number;
+  message: string | string[];
+}
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -49,10 +59,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return statusCode === HttpStatus.NOT_FOUND && !!request.user;
   }
 
-  private normalize(exception: unknown): { statusCode: number; message: string | string[] } {
-    if (!(exception instanceof HttpException)) {
-      return { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: INTERNAL_MESSAGE };
-    }
+  private normalize(exception: unknown): NormalizedError {
+    if (exception instanceof HttpException) return this.fromHttpException(exception);
+
+    const statusCode = this.clientErrorStatus(exception);
+    if (!statusCode) return { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: INTERNAL_MESSAGE };
+    return { statusCode, message: CLIENT_ERROR_MESSAGES[statusCode] ?? DEFAULT_CLIENT_ERROR_MESSAGE };
+  }
+
+  private fromHttpException(exception: HttpException): NormalizedError {
     const statusCode = exception.getStatus();
     if (statusCode >= 500) return { statusCode, message: INTERNAL_MESSAGE };
 
@@ -60,5 +75,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (isString(body)) return { statusCode, message: body };
     const message = (body as { message?: string | string[] }).message;
     return { statusCode, message: message ?? exception.message };
+  }
+
+  /** O parser de body (http-errors) lança erros 4xx com `status` que não são `HttpException` do Nest. */
+  private clientErrorStatus(exception: unknown): number | null {
+    if (typeof exception !== 'object' || exception === null) return null;
+    const status = (exception as { status?: unknown }).status;
+    if (!Number.isInteger(status)) return null;
+    const code = status as number;
+    return code >= 400 && code < 500 ? code : null;
   }
 }

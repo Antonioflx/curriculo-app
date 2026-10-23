@@ -27,7 +27,7 @@
 | Categoria | Controles no projeto |
 |---|---|
 | **A01 Broken Access Control** | Todo repository filtra por `userId` vindo do token (nunca do body). Recurso de outro usuário → 404, não 403. Guard global de autenticação; rotas públicas marcadas com `@Public()`. IDs em UUID. |
-| **A02 Security Misconfiguration** | `helmet` no Nest e headers de segurança no Next (CSP, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`). Sem CORS aberto (mesma origem). Swagger e logs verbosos só em desenvolvimento. Variáveis de ambiente validadas no boot. |
+| **A02 Security Misconfiguration** | `helmet` no Nest e headers de segurança no Next (CSP, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'`). Sem CORS aberto (mesma origem). Swagger e logs verbosos só em desenvolvimento. Variáveis de ambiente validadas no boot; um `.env` por app, ignorado pelo git (só o `.env.example` é versionado); em produção o boot recusa segredo de exemplo, origem sem https e banco sem SSL. |
 | **A03 Software Supply Chain Failures** | `pnpm-lock.yaml` commitado e `pnpm install --frozen-lockfile` no CI. Dependabot/Renovate ativo. `pnpm audit` no CI. Versões fixas, sem `latest`. Poucas dependências. |
 | **A04 Cryptographic Failures** | HTTPS em tudo (Vercel). Argon2id para senha, hash SHA-256 para refresh token. Segredos só em variáveis de ambiente da Vercel. Conexão com o Postgres com SSL. |
 | **A05 Injection** | Prisma com queries parametrizadas; `$queryRawUnsafe` proibido. DTOs com `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`. React escapa a saída; `dangerouslySetInnerHTML` proibido. Prompt injection tratado em docs/ia.md. |

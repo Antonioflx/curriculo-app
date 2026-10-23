@@ -130,6 +130,22 @@ describe('App (e2e)', () => {
       await request(server()).get('/api/auth/me').set('Cookie', newSession).expect(401);
     });
 
+    it('dois refreshes simultâneos com o mesmo token: só um vence e a família é revogada', async () => {
+      const reg = await register().expect(201);
+      const refresh = cookieHeader(reg, 'refresh_token');
+
+      const [a, b] = await Promise.all([
+        post('/api/auth/refresh').set('Cookie', refresh),
+        post('/api/auth/refresh').set('Cookie', refresh),
+      ]);
+      expect([a.status, b.status].sort()).toEqual([204, 401]);
+
+      // O perdedor é tratado como reuso: a sessão que o vencedor acabou de criar também cai.
+      const winner = a.status === 204 ? a : b;
+      await post('/api/auth/refresh').set('Cookie', cookieHeader(winner, 'refresh_token')).expect(401);
+      await request(server()).get('/api/auth/me').set('Cookie', cookieHeader(winner, 'session_token')).expect(401);
+    });
+
     it('refresh sem cookie devolve 401 e limpa os cookies', async () => {
       const res = await post('/api/auth/refresh').expect(401);
       const setCookie = (res.headers['set-cookie'] ?? []) as unknown as string[];

@@ -47,6 +47,27 @@ describe('AllExceptionsFilter', () => {
     expect(body.message).toBe('Erro interno do servidor');
   });
 
+  describe('erros do parser de body (http-errors, não são HttpException)', () => {
+    it('413 vira resposta 413 em português, sem log de erro inesperado', () => {
+      const { status, body, events } = run(Object.assign(new Error('request entity too large'), { status: 413 }));
+      expect(status).toBe(413);
+      expect(body.message).toBe('Corpo da requisição muito grande');
+      expect(events.error).not.toHaveBeenCalled();
+    });
+
+    it('outro 4xx usa a mensagem genérica e não vaza a do parser', () => {
+      const { status, body } = run(Object.assign(new Error('detalhe interno do parser'), { status: 400 }));
+      expect(status).toBe(400);
+      expect(body.message).toBe('Requisição inválida');
+    });
+
+    it('status 5xx, inválido ou ausente continua sendo 500', () => {
+      expect(run(Object.assign(new Error('x'), { status: 502 })).status).toBe(500);
+      expect(run(Object.assign(new Error('x'), { status: 'oops' })).status).toBe(500);
+      expect(run('texto solto').status).toBe(500);
+    });
+  });
+
   describe('log de acesso negado (A09)', () => {
     it('registra 404 de usuário logado, com userId, rota e sem conteúdo', () => {
       const { events } = run(new NotFoundException(), { user: { userId: 'u1', sessionId: 's1' } });

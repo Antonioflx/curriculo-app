@@ -1,18 +1,21 @@
+# Postgres local de desenvolvimento.
+# As credenciais vêm de backend/.env (só POSTGRES_* são importadas; nenhum outro segredo entra no container).
+# Suba com `pnpm db:up` (usa --env-file backend/.env).
 services:
   postgres:
     image: postgres:17
     container_name: curriculo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: curriculo
-      POSTGRES_PASSWORD: curriculo
-      POSTGRES_DB: curriculo
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER em backend/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD em backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB em backend/.env}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U curriculo -d curriculo"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10

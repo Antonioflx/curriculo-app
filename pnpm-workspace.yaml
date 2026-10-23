@@ -11,3 +11,9 @@ allowBuilds:
   esbuild: false
   unrs-resolver: false
   workerd: false
+
+# Versões corrigidas de vulnerabilidades do `pnpm audit`: lodash (via Prisma Studio, só CLI)
+# e body-parser (via express, usado em runtime; DoS com corpo comprimido). Remover quando as deps upstream atualizarem.
+overrides:
+  lodash: 4.18.1
+  body-parser: 2.4.0

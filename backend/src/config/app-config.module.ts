@@ -8,7 +8,7 @@ import { validateEnv } from './env.schema';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['../.env', '.env'],
+      envFilePath: ['.env'],
       validate: validateEnv,
     }),
   ],

@@ -8,7 +8,7 @@
     "lint": "pnpm --filter backend lint",
     "format": "pnpm -r --if-present format",
     "format:check": "pnpm -r --if-present format:check",
-    "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down"
+    "db:up": "docker compose --env-file backend/.env up -d postgres",
+    "db:down": "docker compose --env-file backend/.env down"
   }
 }

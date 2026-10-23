@@ -113,6 +113,8 @@ resumes/
 └── strategies/ ...                # só onde fizer sentido (ex.: auth/jwt)
 ```
 
+Para criar um módulo novo use a skill `create-new-module-backend` (gera o esqueleto neste formato); depois rode a `review-backend`.
+
 Organização do módulo:
 - Na raiz ficam só `*.module.ts` e `*.controller.ts`. Todo o resto vai para subpasta.
 - Crie só as pastas que o módulo usa; nada de pasta vazia ou com um arquivo sem necessidade de crescer.
@@ -149,13 +151,13 @@ Regras:
 - Conventional Commits (`feat:`, `fix:`, `chore:`...) e branches por feature.
 - Testes com Jest: services e repositories no backend; hooks e componentes críticos no frontend.
 - Nomes de código em inglês; textos da interface em português.
-- Variáveis de ambiente validadas no boot (Zod no `web`, `@nestjs/config` + schema no `api`). Nunca commitar `.env`.
+- Variáveis de ambiente validadas no boot (Zod no `web`, `@nestjs/config` + schema no `api`). Cada app tem o próprio `.env` (`backend/.env`, `frontend/.env`), ignorado pelo git; só o `.env.example` (sem valores reais) é versionado. Em produção o boot recusa segredo de exemplo, origem sem https e banco sem `sslmode=require`.
 
 ## Comandos
 
-Na raiz (copie `.env.example` para `.env` antes):
+Na raiz (copie `backend/.env.example` para `backend/.env` antes; cada app tem o seu `.env`, a raiz não tem):
 
-- `pnpm db:up` / `pnpm db:down`: sobe e derruba o Postgres local (Docker).
+- `pnpm db:up` / `pnpm db:down`: sobe e derruba o Postgres local (Docker). O compose só importa `POSTGRES_*` de `backend/.env` (`--env-file`); nenhum outro segredo entra no container, e a porta só abre em 127.0.0.1.
 - `pnpm dev`: backend em modo watch (porta 3001, prefixo `/api`).
 - `pnpm test`, `pnpm lint`, `pnpm build`: delegam ao backend.
 - `pnpm format` / `pnpm format:check`: Biome (só formatador) em cada app, cada um com o próprio `biome.json` (`backend/biome.json` hoje; o `frontend/` terá o dele). Rode `pnpm format` antes de pedir commit.
