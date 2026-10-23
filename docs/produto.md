@@ -88,7 +88,7 @@ Resume (ADJUSTED) N─1 JobPosting     via jobId
 
 ```ts
 {
-  header: { name, headline, location, phone, email, links[] },
+  header: { name, headline, location, phone, email, links: [{ label, url }] },
   summary: string,
   experiences: [{ company, role, start, end | null, context, bullets[] }],
   skills: [{ category, items[] }],

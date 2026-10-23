@@ -1,11 +1,10 @@
-import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
+import { Text, Trim } from '@/common/decorators/validation.decorators';
 import { LoginDto } from './login.dto';
 
 export class RegisterDto extends LoginDto {
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
+  @Trim()
   @IsNotEmpty()
-  @MaxLength(100)
+  @Text(100)
   name: string;
 }

@@ -9,6 +9,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { ResumesModule } from './modules/resumes/resumes.module';
+import { TagsModule } from './modules/tags/tags.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -20,6 +22,8 @@ import { PrismaModule } from './prisma/prisma.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     UsersModule,
     AuthModule,
+    TagsModule,
+    ResumesModule,
   ],
   controllers: [HealthController],
   providers: [

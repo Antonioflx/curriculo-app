@@ -21,7 +21,7 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./src/*"], "@test/*": ["./test/*"] }
   },
   "include": ["src", "test", "prisma.config.ts", "jest.config.ts"]
 }

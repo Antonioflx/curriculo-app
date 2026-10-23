@@ -1,54 +1,22 @@
-import { Test } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { AppModule } from '@/app.module';
-import { configureApp } from '@/app.setup';
 import { PrismaService } from '@/prisma/prisma.service';
+import { api, cleanupUsers, cookieHeader, createTestApp, newEmail } from '@test/helpers/e2e';
 
 describe('App (e2e)', () => {
   let app: NestExpressApplication;
   let prisma: PrismaService;
-  const createdEmails: string[] = [];
 
-  const WEB_ORIGIN = 'http://localhost:3000';
   const server = () => app.getHttpServer();
-
-  /** POST com a Origin do web e um IP próprio, para o limite por IP não vazar entre testes. */
-  const randomOctet = () => Math.floor(Math.random() * 255);
-  const post = (path: string) =>
-    request(server())
-      .post(path)
-      .set('Origin', WEB_ORIGIN)
-      .set('X-Forwarded-For', `10.${randomOctet()}.${randomOctet()}.${randomOctet()}`);
-
-  /** Cookies Secure não voltam em HTTP no cookie jar do supertest; repassa-se o header à mão. */
-  const cookieHeader = (res: request.Response, ...names: string[]) => {
-    const setCookie = (res.headers['set-cookie'] ?? []) as unknown as string[];
-    return names.map((name) => setCookie.find((c) => c.startsWith(`${name}=`))!.split(';')[0]).join('; ');
-  };
-
-  const newEmail = () => {
-    const email = `e2e-${randomUUID()}@test.local`;
-    createdEmails.push(email);
-    return email;
-  };
-
+  const post = (path: string) => api(app).post(path);
   const register = (email = newEmail()) =>
     post('/api/auth/register').send({ name: 'Ana Teste', email, password: 'Segredo!2026' });
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication<NestExpressApplication>();
-    configureApp(app);
-    await app.init();
-    prisma = app.get(PrismaService);
+    ({ app, prisma } = await createTestApp());
   });
 
-  afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { in: createdEmails } } });
-    await app.close();
-  });
+  afterAll(() => cleanupUsers(app, prisma));
 
   describe('infra', () => {
     it('GET /api/health é público', async () => {

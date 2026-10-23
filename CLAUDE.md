@@ -118,6 +118,8 @@ Organização do módulo:
 - Interface ou type compartilhado entre service e repository vive em `types/`, nunca declarado dentro do repository.
 - Erros do Prisma (P2002 duplicado, P2025 não encontrado, P2003 referência inválida) são traduzidos com `@HandlePrismaErrors({...})` nos métodos do repository, nunca com `try/catch` repetido. Os padrões podem ser sobrescritos por método.
 - Interface ou type usado em parâmetro de método decorado (controller, repository) é importado com `import type` (exigência do `isolatedModules` com `emitDecoratorMetadata`).
+- DTOs usam os decorators compostos de `@/common/decorators/validation.decorators` (`@Text(max)`, `@TextList`, `@Nested`, `@NestedList`, `@Trim`), nunca `@IsString()` + `@MaxLength()` repetidos. Toda string e lista de entrada tem limite. Controllers usam `@CurrentUser('userId')` e `@UuidParam()`.
+- Testes e2e usam `@test/helpers/e2e` (`createTestApp`, `signUp`, `api`) e `@test/fixtures/*`; não recriar helpers por arquivo.
 - Imports dentro do módulo são relativos e de um nível (`../types/...`); de outro módulo ou de `common`, usa o alias `@/`.
 
 Regras:
