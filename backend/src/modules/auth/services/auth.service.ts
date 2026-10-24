@@ -5,8 +5,8 @@ import { AuthUser } from '@/common/types/app-request';
 import { addSeconds, isPast } from '@/common/utils/date.utils';
 import { UsersService } from '@/modules/users/services/users.service';
 import { INVALID_CREDENTIALS_MESSAGE, invalidSession, REFRESH_TTL_SECONDS } from '../constants/auth.constants';
-import { LoginDto } from '../dto/login.dto';
-import { RegisterDto } from '../dto/register.dto';
+import { LoginDto } from '../dto/input/login.dto';
+import { RegisterDto } from '../dto/input/register.dto';
 import { SessionsRepository } from '../repositories/sessions.repository';
 import { CreateSessionData, RequestMeta, SessionTokens } from '../types/auth.types';
 import { PasswordService } from './password.service';
@@ -31,7 +31,7 @@ export class AuthService {
     const passwordHash = await this.passwords.hash(dto.password);
     const user = await this.users.create({ name: dto.name, email: dto.email, passwordHash });
 
-    this.logger.info('register', { userId: user.id, requestId: meta.requestId });
+    this.logger.info('register', { userId: user.id });
     return { user, tokens: await this.startSession(user.id, randomUUID(), meta) };
   }
 
@@ -40,11 +40,11 @@ export class AuthService {
     const valid = await this.passwords.verify(user?.passwordHash ?? null, dto.password);
 
     if (!user || !valid) {
-      this.logger.warn('login_failed', { userId: user?.id, ip: meta.ip, requestId: meta.requestId });
+      this.logger.warn('login_failed', { userId: user?.id, ip: meta.ip });
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    this.logger.info('login', { userId: user.id, requestId: meta.requestId });
+    this.logger.info('login', { userId: user.id });
     return { user, tokens: await this.startSession(user.id, randomUUID(), meta) };
   }
 
@@ -61,9 +61,9 @@ export class AuthService {
     return { accessToken: await this.tokens.signAccess(current.userId, rotated.id), refreshToken: next.refreshToken };
   }
 
-  async logout(auth: AuthUser, meta: RequestMeta) {
+  async logout(auth: AuthUser) {
     await this.sessions.revokeFamilyOf(auth.sessionId, auth.userId);
-    this.logger.info('logout', { userId: auth.userId, requestId: meta.requestId });
+    this.logger.info('logout', { userId: auth.userId });
   }
 
   /** Chamado pela estratégia JWT a cada requisição: sessão revogada ou expirada fecha o acesso. */
@@ -99,7 +99,6 @@ export class AuthService {
       userId: session.userId,
       familyId: session.familyId,
       ip: meta.ip,
-      requestId: meta.requestId,
     });
     throw invalidSession();
   }

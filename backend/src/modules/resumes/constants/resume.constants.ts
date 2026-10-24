@@ -7,6 +7,7 @@ export const RESUME_TITLE_MAX = 100;
 export const COPY_SUFFIX = ' (cópia)';
 export const RESUME_NOT_FOUND_MESSAGE = 'Currículo não encontrado';
 export const ONLY_BASE_HAS_TAGS_MESSAGE = 'Só currículos base têm tags';
+export const INVALID_CONTENT_MESSAGE = 'O conteúdo deste currículo está em formato inválido';
 
 /** Erros do Prisma → exceptions, para os métodos do ResumesRepository. */
 export const RESUME_ERRORS = {

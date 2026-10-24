@@ -1,14 +1,15 @@
-import { MiddlewareConsumer, Module, NestModule, ValidationPipe } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from './core/logger/logger.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { OriginGuard } from './common/guards/origin.guard';
-import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
+import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 import { ResumesModule } from './modules/resumes/resumes.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { UsersModule } from './modules/users/users.module';
@@ -24,6 +25,8 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     TagsModule,
     ResumesModule,
+    AiModule,
+    JobsModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -37,8 +40,4 @@ import { PrismaModule } from './prisma/prisma.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware).forRoutes('*path');
-  }
-}
+export class AppModule {}

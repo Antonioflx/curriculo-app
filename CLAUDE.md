@@ -107,7 +107,9 @@ resumes/
 │   └── resumes.service.spec.ts    # o spec fica ao lado do arquivo que testa
 ├── repositories/
 │   └── resumes.repository.ts      # único lugar que fala com o Prisma
-├── dto/                           # classes com class-validator (entrada e saída)
+├── dto/
+│   ├── input/                     # ENTRADA: class-validator (tipo, normalização, limites, regras entre campos)
+│   └── output/                    # SAÍDA: dado enxuto, mapeado com from()
 ├── constants/                     # constantes e listas fixas do módulo
 ├── types/                         # interfaces e types do módulo
 └── strategies/ ...                # só onde fizer sentido (ex.: auth/jwt)
@@ -121,13 +123,14 @@ Organização do módulo:
 - Interface ou type compartilhado entre service e repository vive em `types/`, nunca declarado dentro do repository.
 - Erros do Prisma (P2002 duplicado, P2025 não encontrado, P2003 referência inválida) são traduzidos com `@HandlePrismaErrors({...})` nos métodos do repository, nunca com `try/catch` repetido. Os padrões podem ser sobrescritos por método.
 - Interface ou type usado em parâmetro de método decorado (controller, repository) é importado com `import type` (exigência do `isolatedModules` com `emitDecoratorMetadata`).
+- **DTO é a borda do módulo.** `dto/input/` recebe e valida tudo que vem de fora (tipo, `@Trim`, limite de tamanho, formato, regras entre campos, upload com `FileToBody` + `@IsImageUpload()`); o service e a IA recebem dado já válido e não validam entrada. `dto/output/` devolve só o que o cliente usa: sem `userId`, `passwordHash` nem texto bruto, listagem em resumo e detalhe completo. Pré-condição de negócio (ex.: "tem currículo base?") fica no service. Limites de entrada em `@/common/constants/input-limits`.
 - DTOs usam os decorators compostos de `@/common/decorators/validation.decorators` (`@Text(max)`, `@TextList`, `@Nested`, `@NestedList`, `@Trim`), nunca `@IsString()` + `@MaxLength()` repetidos. Toda string e lista de entrada tem limite. Controllers usam `@CurrentUser('userId')` e `@UuidParam()`.
 - Testes e2e usam `@test/helpers/e2e` (`createTestApp`, `signUp`, `api`) e `@test/fixtures/*`; não recriar helpers por arquivo.
-- Imports dentro do módulo são relativos e de um nível (`../types/...`); de outro módulo ou de `common`, usa o alias `@/`.
+- Imports dentro do módulo são relativos e de um nível (`../types/...`); de outro módulo, de `common` ou de dentro de `dto/input|output` (que fica a dois níveis), use o alias `@/`.
 
 Regras:
 - **Controller** não tem regra de negócio. **Service** não usa `PrismaService` nem monta query. **Repository** não tem regra de negócio.
-- Logs só pelo `AppLogger` de `@/core/logger` (`this.logger.info|warn|error('evento', { ids })`); nunca `console.*` nem `Logger` do Nest direto. Chaves sensíveis (senha, token, `content`, `rawText`) são mascaradas, mas passe só ids.
+- Logs só pelo `AppLogger` de `@/core/logger` (`this.logger.info|warn|error('evento', { ids })`); nunca `console.*` nem `Logger` do Nest direto. `requestId` e `userId` da requisição entram sozinhos (contexto em `@/core/context`); não os repasse. Chaves sensíveis (senha, token, `content`, `rawText`) são mascaradas, mas passe só ids. Rotas que chamam a IA levam `@AiRateLimit()`.
 - Enums do Prisma entram na aplicação só por `@/common/enums`; services e DTOs nunca importam de `@/generated`.
 - Toda dependência entra pelo construtor (injeção do Nest). Services dependem de classes injetáveis, o que permite mockar nos testes.
 - Toda query de dado do usuário filtra por `userId` **no repository** (ver docs/seguranca.md).
@@ -168,4 +171,5 @@ Notas do backend:
 
 - O Nest 12 é ESM-only: `tsconfig` com `module: nodenext` e Jest rodando com `--experimental-vm-modules`. Alias de import: `@/*` → `src/*`.
 - Versões fixas (`.npmrc` com `save-exact`). TypeScript fica na 6.x porque o `ts-jest` não aceita a 7. Prisma CLI e client precisam estar na mesma versão.
+- IA: `AiService` (tarefas) → `LlmProviderRegistry` (cadeia de providers) → `GeminiProvider` / `GroqProvider`. Variáveis `LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL`, `GROQ_API_KEY`, `GROQ_MODEL`, `AI_TIMEOUT_MS`, `AI_TOTAL_TIMEOUT_MS` (as chaves só no `backend/.env`; em produção são obrigatórias para os providers configurados). Modelo, fallback, cotas e lições em `docs/ia.md`. O Jest não alcança as APIs: use `pnpm --filter backend ai:smoke` (fluxo completo) e `ai:bench` (compara modelos antes de trocar).
 - Scripts de build de dependências são liberados em `pnpm-workspace.yaml` (`allowBuilds`); só `argon2` e Prisma.

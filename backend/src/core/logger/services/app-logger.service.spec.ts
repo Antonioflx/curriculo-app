@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { requestContext } from '../../context/request-context';
 import { AppLogger } from './app-logger.service';
 
 describe('AppLogger', () => {
@@ -34,6 +35,28 @@ describe('AppLogger', () => {
       userId: 'u1',
       Password: '[REDACTED]',
       nested: { refreshToken: '[REDACTED]', list: [{ content: '[REDACTED]', id: 1 }] },
+    });
+  });
+
+  describe('contexto da requisição', () => {
+    it('anexa requestId e userId sozinho, sem quem loga repassar', () => {
+      requestContext.run({ requestId: 'req-1', userId: 'u1' }, () => logger.info('algo', { extra: 1 }));
+      expect(lastJson(log)).toEqual({ event: 'algo', requestId: 'req-1', userId: 'u1', extra: 1 });
+    });
+
+    it('sem usuário identificado mantém só o requestId', () => {
+      requestContext.run({ requestId: 'req-1' }, () => logger.warn('algo'));
+      expect(lastJson(warn)).toEqual({ event: 'algo', requestId: 'req-1' });
+    });
+
+    it('um campo explícito prevalece (ex.: userId da conta alvo de um login falho)', () => {
+      requestContext.run({ requestId: 'req-1', userId: 'u1' }, () => logger.info('algo', { userId: 'outro' }));
+      expect(lastJson(log).userId).toBe('outro');
+    });
+
+    it('fora de uma requisição não inventa ids', () => {
+      logger.error('algo');
+      expect(lastJson(error)).toEqual({ event: 'algo' });
     });
   });
 

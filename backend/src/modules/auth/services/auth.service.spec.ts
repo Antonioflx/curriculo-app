@@ -7,7 +7,7 @@ import { PasswordService } from './password.service';
 import { SessionsRepository } from '../repositories/sessions.repository';
 import { TokensService } from './tokens.service';
 
-const meta = { ip: '1.1.1.1', userAgent: 'jest', requestId: 'req-1' };
+const meta = { ip: '1.1.1.1', userAgent: 'jest' };
 const future = () => new Date(Date.now() + 60_000);
 const past = () => new Date(Date.now() - 60_000);
 
@@ -158,7 +158,7 @@ describe('AuthService', () => {
   });
 
   it('logout revoga a família da sessão do usuário', async () => {
-    await service.logout({ userId: 'u1', sessionId: 's1' }, meta);
+    await service.logout({ userId: 'u1', sessionId: 's1' });
     expect(sessions.revokeFamilyOf).toHaveBeenCalledWith('s1', 'u1');
   });
 });

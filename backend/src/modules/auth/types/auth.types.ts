@@ -12,7 +12,6 @@ export interface SessionTokens {
 export interface RequestMeta {
   ip?: string;
   userAgent?: string;
-  requestId: string;
 }
 
 export interface CreateSessionData {

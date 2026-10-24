@@ -1,18 +1,22 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import { ResumeKind } from '@/common/enums';
 import { assertBelowLimit } from '@/common/utils/limit.utils';
+import { AiService } from '@/modules/ai/services/ai.service';
+import { type ResumeContent, resumeContentSchema } from '@/modules/ai/schemas/resume-content.schema';
 import { TagsService } from '@/modules/tags/services/tags.service';
 import {
   COPY_SUFFIX,
+  INVALID_CONTENT_MESSAGE,
   MAX_BASE_RESUMES_PER_USER,
   ONLY_BASE_HAS_TAGS_MESSAGE,
   RESUME_NOT_FOUND_MESSAGE,
   RESUME_TITLE_MAX,
 } from '../constants/resume.constants';
-import { CreateResumeDto } from '../dto/create-resume.dto';
-import { ListResumesQueryDto } from '../dto/list-resumes-query.dto';
-import { UpdateResumeDto } from '../dto/update-resume.dto';
+import { CreateResumeDto } from '../dto/input/create-resume.dto';
+import { ListResumesQueryDto } from '../dto/input/list-resumes-query.dto';
+import { ReviseResumeDto } from '../dto/input/revise-resume.dto';
+import { UpdateResumeDto } from '../dto/input/update-resume.dto';
 import { ResumesRepository } from '../repositories/resumes.repository';
 
 @Injectable()
@@ -20,6 +24,7 @@ export class ResumesService {
   constructor(
     private readonly resumes: ResumesRepository,
     private readonly tags: TagsService,
+    private readonly ai: AiService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -46,6 +51,16 @@ export class ResumesService {
     });
   }
 
+  /** Pedido do usuário no chat: a IA devolve o content inteiro revisado, que substitui o atual. */
+  async revise(userId: string, id: string, dto: ReviseResumeDto) {
+    const current = await this.get(userId, id);
+    const { data } = await this.ai.reviseResume({
+      content: this.parseContent(current.content),
+      instruction: dto.instruction,
+    });
+    return this.resumes.update(userId, id, { content: data });
+  }
+
   async duplicate(userId: string, id: string) {
     const source = await this.get(userId, id);
     await this.assertUnderLimit(userId);
@@ -59,6 +74,13 @@ export class ResumesService {
 
   async remove(userId: string, id: string) {
     await this.resumes.delete(userId, id);
+  }
+
+  /** O content vem do banco como JSON solto: confere o formato antes de mandar para a IA. */
+  private parseContent(content: unknown): ResumeContent {
+    const parsed = resumeContentSchema.safeParse(content);
+    if (!parsed.success) throw new UnprocessableEntityException(INVALID_CONTENT_MESSAGE);
+    return parsed.data;
   }
 
   private async assertUnderLimit(userId: string) {

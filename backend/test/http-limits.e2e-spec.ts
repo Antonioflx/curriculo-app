@@ -34,6 +34,9 @@ describe('Limites e entradas inválidas (e2e)', () => {
       .send({ name: 'x'.repeat(300_000) })
       .expect(413);
     expect(res.body.message).toBe('Corpo da requisição muito grande');
+    // O contexto da requisição abre antes do parser de body: até este erro sai com requestId.
+    expect(res.body.requestId).toBe(res.headers['x-request-id']);
+    expect(res.body.requestId).toBeDefined();
   });
 
   it('JSON malformado dá 400', async () => {

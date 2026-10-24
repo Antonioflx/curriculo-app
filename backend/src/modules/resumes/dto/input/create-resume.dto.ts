@@ -1,6 +1,6 @@
 import { ArrayMaxSize, IsArray, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 import { Nested, Text, Trim } from '@/common/decorators/validation.decorators';
-import { MAX_TAGS_PER_RESUME, RESUME_TITLE_MAX } from '../constants/resume.constants';
+import { MAX_TAGS_PER_RESUME, RESUME_TITLE_MAX } from '@/modules/resumes/constants/resume.constants';
 import { ResumeContentDto } from './resume-content.dto';
 
 export class CreateResumeDto {

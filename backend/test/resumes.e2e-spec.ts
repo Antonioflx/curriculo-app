@@ -1,3 +1,4 @@
+import { BadGatewayException, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@/prisma/prisma.service';
@@ -7,11 +8,12 @@ import { api, cleanupUsers, createTestApp, signUp } from '@test/helpers/e2e';
 describe('Tags e Resumes (e2e)', () => {
   let app: NestExpressApplication;
   let prisma: PrismaService;
+  let ai: Awaited<ReturnType<typeof createTestApp>>['ai'];
   let ana: ReturnType<typeof api>;
   let bruno: ReturnType<typeof api>;
 
   beforeAll(async () => {
-    ({ app, prisma } = await createTestApp());
+    ({ app, prisma, ai } = await createTestApp());
     ana = api(app, (await signUp(app)).cookie);
     bruno = api(app, (await signUp(app)).cookie);
   });
@@ -92,6 +94,36 @@ describe('Tags e Resumes (e2e)', () => {
       await send(withoutSummary).expect(400);
     });
 
+    it('o log de acesso negado sai com requestId e userId do contexto, sem ninguém repassá-los', async () => {
+      const resume = await createResume(ana);
+      const carol = await signUp(app);
+      const warn = jest.spyOn(Logger.prototype, 'warn');
+
+      try {
+        const res = await api(app, carol.cookie).get(`/api/resumes/${resume.id}`).expect(404);
+
+        const logged = warn.mock.calls
+          .flatMap(([line]) => {
+            try {
+              return [JSON.parse(String(line))];
+            } catch {
+              return [];
+            }
+          })
+          .find((entry) => entry.event === 'access_denied');
+        expect(logged).toEqual({
+          event: 'access_denied',
+          requestId: res.headers['x-request-id'],
+          userId: carol.userId,
+          statusCode: 404,
+          method: 'GET',
+          path: `/api/resumes/${resume.id}`,
+        });
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
     it('currículo de outro usuário dá 404 em leitura, edição, duplicação e exclusão', async () => {
       const resume = await createResume(ana);
       await bruno.get(`/api/resumes/${resume.id}`).expect(404);
@@ -149,6 +181,66 @@ describe('Tags e Resumes (e2e)', () => {
       await ana.delete(`/api/resumes/${resume.id}`).expect(204);
       await ana.get(`/api/resumes/${resume.id}`).expect(404);
       await ana.get('/api/resumes/nao-e-uuid').expect(400);
+    });
+  });
+
+  describe('revise (pedido do usuário no chat)', () => {
+    const revised = { ...resumeContent, summary: 'Resumo encurtado pela IA.' };
+    const aiResult = (data: unknown) => ({ data, usage: { model: 'modelo-teste', inputTokens: 1, outputTokens: 1 } });
+
+    beforeEach(() => {
+      ai.reviseResume.mockReset();
+      ai.reviseResume.mockResolvedValue(aiResult(revised));
+    });
+
+    it('manda à IA o currículo atual e o pedido aparado, e grava o resultado', async () => {
+      const resume = await createResume(ana);
+
+      const res = await ana
+        .post(`/api/resumes/${resume.id}/revise`)
+        .send({ instruction: '  Encurta o resumo  ' })
+        .expect(201);
+
+      expect(ai.reviseResume).toHaveBeenCalledWith({ content: resumeContent, instruction: 'Encurta o resumo' });
+      expect(res.body.content.summary).toBe('Resumo encurtado pela IA.');
+      expect((await ana.get(`/api/resumes/${resume.id}`).expect(200)).body.content.summary).toBe(
+        'Resumo encurtado pela IA.',
+      );
+    });
+
+    it('currículo de outro usuário dá 404 e a IA nem é chamada', async () => {
+      const resume = await createResume(ana);
+
+      await bruno.post(`/api/resumes/${resume.id}/revise`).send({ instruction: 'Encurta o resumo' }).expect(404);
+
+      expect(ai.reviseResume).not.toHaveBeenCalled();
+      expect((await ana.get(`/api/resumes/${resume.id}`).expect(200)).body.content).toEqual(resumeContent);
+    });
+
+    it.each([
+      ['pedido ausente', {}],
+      ['pedido vazio', { instruction: '   ' }],
+      ['pedido acima de 1.000 caracteres', { instruction: 'x'.repeat(1_001) }],
+      ['campo desconhecido', { instruction: 'ok', content: {} }],
+    ])('recusa %s (400) sem chamar a IA', async (_name, body) => {
+      const resume = await createResume(ana);
+      await ana.post(`/api/resumes/${resume.id}/revise`).send(body).expect(400);
+      expect(ai.reviseResume).not.toHaveBeenCalled();
+    });
+
+    it('se a IA falha, devolve o erro útil e o currículo continua como estava', async () => {
+      const resume = await createResume(ana);
+      ai.reviseResume.mockRejectedValue(new BadGatewayException('Falha ao consultar a IA'));
+
+      const res = await ana.post(`/api/resumes/${resume.id}/revise`).send({ instruction: 'Encurta' }).expect(502);
+
+      expect(res.body.message).toBe('Falha ao consultar a IA');
+      expect((await ana.get(`/api/resumes/${resume.id}`).expect(200)).body.content).toEqual(resumeContent);
+    });
+
+    it('exige login e id válido', async () => {
+      await api(app).post(`/api/resumes/${randomUUID()}/revise`).send({ instruction: 'x' }).expect(401);
+      await ana.post('/api/resumes/nao-e-uuid/revise').send({ instruction: 'x' }).expect(400);
     });
   });
 });

@@ -1,9 +1,12 @@
 import {
   ArgumentsHost,
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
+  GatewayTimeoutException,
   InternalServerErrorException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AppLogger } from '@/core/logger/services/app-logger.service';
 import { AllExceptionsFilter } from './all-exceptions.filter';
@@ -39,12 +42,28 @@ describe('AllExceptionsFilter', () => {
     expect(status).toBe(500);
     expect(body).toEqual({ statusCode: 500, message: 'Erro interno do servidor', requestId: 'req-1' });
     expect(JSON.stringify(body)).not.toContain('postgres');
-    expect(events.error).toHaveBeenCalledWith('unhandled_exception', expect.objectContaining({ requestId: 'req-1' }));
+    expect(events.error).toHaveBeenCalledWith('unhandled_exception', {
+      error: 'connection refused postgres://user:pass@host',
+    });
   });
 
-  it('esconde a mensagem de HttpException 5xx', () => {
-    const { body } = run(new InternalServerErrorException('detalhe interno'));
+  it('esconde a mensagem de um 500 inesperado, mesmo vindo como HttpException', () => {
+    const { body, events } = run(new InternalServerErrorException('detalhe interno'));
     expect(body.message).toBe('Erro interno do servidor');
+    expect(events.error).toHaveBeenCalledWith('unhandled_exception', expect.any(Object));
+  });
+
+  describe('indisponibilidade de dependência (ex.: IA)', () => {
+    it.each([
+      [new BadGatewayException('Falha ao consultar a IA'), 502],
+      [new ServiceUnavailableException('IA indisponível no momento'), 503],
+      [new GatewayTimeoutException('Tempo esgotado'), 504],
+    ])('%p chega ao cliente com a mensagem que escrevemos', (exception, status) => {
+      const { body, events } = run(exception);
+      expect(body).toEqual({ statusCode: status, message: exception.message, requestId: 'req-1' });
+      // Quem lançou já registrou o motivo (ai_error...): não vira "erro inesperado" em duplicidade.
+      expect(events.error).not.toHaveBeenCalled();
+    });
   });
 
   describe('erros do parser de body (http-errors, não são HttpException)', () => {
@@ -69,12 +88,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   describe('log de acesso negado (A09)', () => {
-    it('registra 404 de usuário logado, com userId, rota e sem conteúdo', () => {
+    it('registra 404 de usuário logado, com a rota e sem conteúdo (userId e requestId vêm do contexto)', () => {
       const { events } = run(new NotFoundException(), { user: { userId: 'u1', sessionId: 's1' } });
       expect(events.warn).toHaveBeenCalledWith('access_denied', {
         statusCode: 404,
-        userId: 'u1',
-        requestId: 'req-1',
         method: 'GET',
         path: '/api/resumes/x',
       });

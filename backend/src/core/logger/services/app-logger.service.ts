@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { requestContext } from '../../context/request-context';
 import type { LogFields } from '../types/logger.types';
 import { redact } from '../utils/redact';
 
 /**
  * Log estruturado (JSON) da aplicação: `logger.info|warn|error('evento', { ...campos })`.
+ * `requestId` e `userId` da requisição em andamento entram sozinhos (um campo explícito com o mesmo nome prevalece).
  * Passe só ids e metadados; chaves sensíveis são mascaradas por segurança, mas não conte com isso.
  */
 @Injectable()
@@ -23,6 +25,7 @@ export class AppLogger {
   }
 
   private serialize(event: string, fields: LogFields): string {
-    return JSON.stringify({ event, ...(redact(fields) as LogFields) });
+    const { requestId, userId } = requestContext.get() ?? {};
+    return JSON.stringify({ event, requestId, userId, ...(redact(fields) as LogFields) });
   }
 }

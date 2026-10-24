@@ -5,6 +5,12 @@ import { AppRequest } from '../types/app-request';
 import { isString } from '../utils/type.utils';
 
 const INTERNAL_MESSAGE = 'Erro interno do servidor';
+/** Indisponibilidade de dependência (ex.: IA). A mensagem é escrita por nós, é segura e ajuda o usuário. */
+const EXPOSED_SERVER_ERRORS: ReadonlySet<number> = new Set([
+  HttpStatus.BAD_GATEWAY,
+  HttpStatus.SERVICE_UNAVAILABLE,
+  HttpStatus.GATEWAY_TIMEOUT,
+]);
 const DEFAULT_CLIENT_ERROR_MESSAGE = 'Requisição inválida';
 const CLIENT_ERROR_MESSAGES: Record<number, string> = {
   [HttpStatus.PAYLOAD_TOO_LARGE]: 'Corpo da requisição muito grande',
@@ -33,10 +39,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private logEvent(exception: unknown, statusCode: number, request: AppRequest) {
-    if (statusCode >= 500) {
+    if (this.isMasked(statusCode)) {
       this.logger.error('unhandled_exception', {
-        requestId: request.id,
-        userId: request.user?.userId,
         error: exception instanceof Error ? exception.message : 'unknown',
       });
       return;
@@ -46,8 +50,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     this.logger.warn('access_denied', {
       statusCode,
-      userId: request.user?.userId,
-      requestId: request.id,
       method: request.method,
       path: request.path,
     });
@@ -69,7 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   private fromHttpException(exception: HttpException): NormalizedError {
     const statusCode = exception.getStatus();
-    if (statusCode >= 500) return { statusCode, message: INTERNAL_MESSAGE };
+    if (this.isMasked(statusCode)) return { statusCode, message: INTERNAL_MESSAGE };
 
     const body = exception.getResponse();
     if (isString(body)) return { statusCode, message: body };
@@ -77,6 +79,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return { statusCode, message: message ?? exception.message };
   }
 
+  /** 5xx inesperado: a mensagem não sai do servidor (só vai para o log). */ private isMasked(
+    statusCode: number,
+  ): boolean {
+    return statusCode >= HttpStatus.INTERNAL_SERVER_ERROR && !EXPOSED_SERVER_ERRORS.has(statusCode);
+  }
   /** O parser de body (http-errors) lança erros 4xx com `status` que não são `HttpException` do Nest. */
   private clientErrorStatus(exception: unknown): number | null {
     if (typeof exception !== 'object' || exception === null) return null;

@@ -1,10 +1,12 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ResumeKind } from '@/common/enums';
+import { AiService } from '@/modules/ai/services/ai.service';
 import { TagsService } from '@/modules/tags/services/tags.service';
 import { resumeContent } from '@test/fixtures/resume-content';
 import { COPY_SUFFIX, MAX_BASE_RESUMES_PER_USER, RESUME_TITLE_MAX } from '../constants/resume.constants';
-import { CreateResumeDto } from '../dto/create-resume.dto';
-import { UpdateResumeDto } from '../dto/update-resume.dto';
+import { CreateResumeDto } from '../dto/input/create-resume.dto';
+import { ReviseResumeDto } from '../dto/input/revise-resume.dto';
+import { UpdateResumeDto } from '../dto/input/update-resume.dto';
 import { ResumesRepository } from '../repositories/resumes.repository';
 import { ResumesService } from './resumes.service';
 
@@ -18,7 +20,12 @@ describe('ResumesService', () => {
     delete: jest.fn(),
   };
   const tags = { assertOwned: jest.fn() };
-  const service = new ResumesService(repository as unknown as ResumesRepository, tags as unknown as TagsService);
+  const ai = { reviseResume: jest.fn() };
+  const service = new ResumesService(
+    repository as unknown as ResumesRepository,
+    tags as unknown as TagsService,
+    ai as unknown as AiService,
+  );
 
   const createDto = (extra: object = {}) =>
     ({ title: 'Backend', content: resumeContent, ...extra }) as unknown as CreateResumeDto;
@@ -132,6 +139,47 @@ describe('ResumesService', () => {
       repository.findById.mockResolvedValue(source);
       repository.countBase.mockResolvedValue(MAX_BASE_RESUMES_PER_USER);
       await expect(service.duplicate('u1', 'r1')).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('revise', () => {
+    const current = { id: 'r1', content: resumeContent, tags: [] };
+    const dto = { instruction: 'Encurta o resumo' } as ReviseResumeDto;
+    const revised = { ...resumeContent, summary: 'Resumo curto' };
+
+    it('manda à IA o currículo atual e o pedido, e grava o content devolvido', async () => {
+      repository.findById.mockResolvedValue(current);
+      ai.reviseResume.mockResolvedValue({ data: revised, usage: { model: 'm', inputTokens: 1, outputTokens: 1 } });
+      repository.update.mockResolvedValue({ ...current, content: revised });
+
+      const result = await service.revise('u1', 'r1', dto);
+
+      expect(ai.reviseResume).toHaveBeenCalledWith({ content: resumeContent, instruction: 'Encurta o resumo' });
+      expect(repository.update).toHaveBeenCalledWith('u1', 'r1', { content: revised });
+      expect(result.content).toEqual(revised);
+    });
+
+    it('currículo de outro usuário dá 404 antes de gastar IA', async () => {
+      repository.findById.mockResolvedValue(null);
+
+      await expect(service.revise('u1', 'r1', dto)).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.findById).toHaveBeenCalledWith('u1', 'r1');
+      expect(ai.reviseResume).not.toHaveBeenCalled();
+    });
+
+    it('content inválido no banco dá 422 antes de gastar IA', async () => {
+      repository.findById.mockResolvedValue({ ...current, content: { header: 'x' } });
+
+      await expect(service.revise('u1', 'r1', dto)).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(ai.reviseResume).not.toHaveBeenCalled();
+    });
+
+    it('se a IA falha, nada é gravado', async () => {
+      repository.findById.mockResolvedValue(current);
+      ai.reviseResume.mockRejectedValue(new Error('IA fora'));
+
+      await expect(service.revise('u1', 'r1', dto)).rejects.toThrow('IA fora');
+      expect(repository.update).not.toHaveBeenCalled();
     });
   });
 

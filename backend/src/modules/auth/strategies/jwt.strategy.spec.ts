@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '@/config/app-config.service';
+import { requestContext } from '@/core/context/request-context';
 import { AuthService } from '../services/auth.service';
 import { JwtPayload } from '../types/auth.types';
 import { JwtStrategy } from './jwt.strategy';
@@ -15,6 +16,15 @@ describe('JwtStrategy', () => {
     auth.validateSession.mockResolvedValue({ userId: 'u1', sessionId: 's1' });
     await expect(strategy.validate({ sub: 'u1', sid: 's1' })).resolves.toEqual({ userId: 'u1', sessionId: 's1' });
     expect(auth.validateSession).toHaveBeenCalledWith('u1', 's1');
+  });
+
+  it('informa o usuário ao contexto da requisição, para os logs saírem com userId', async () => {
+    auth.validateSession.mockResolvedValue({ userId: 'u1', sessionId: 's1' });
+
+    await requestContext.run({ requestId: 'req-1' }, async () => {
+      await strategy.validate({ sub: 'u1', sid: 's1' });
+      expect(requestContext.get()).toEqual({ requestId: 'req-1', userId: 'u1' });
+    });
   });
 
   it.each([{ sub: 1, sid: 's1' }, { sub: 'u1', sid: null }, { sub: '', sid: 's1' }, { sid: 's1' }, {}])(

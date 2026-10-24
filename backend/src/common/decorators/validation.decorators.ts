@@ -31,6 +31,14 @@ export const NestedList = (type: Constructor, maxItems: number) =>
     Type(() => type),
   );
 
-/** Remove espaços das pontas e, opcionalmente, normaliza para minúsculas. */
-export const Trim = (options: { lowercase?: boolean } = {}) =>
-  Transform(({ value }: { value: unknown }) => (isString(value) ? normalizeText(value, options) : value));
+/**
+ * Remove espaços das pontas e, opcionalmente, normaliza para minúsculas.
+ * Com `emptyAsUndefined`, texto que fica vazio vira `undefined` (campo "não enviado"): formulários multipart
+ * mandam `text=""` quando o usuário só anexou um arquivo.
+ */
+export const Trim = (options: { lowercase?: boolean; emptyAsUndefined?: boolean } = {}) =>
+  Transform(({ value }: { value: unknown }) => {
+    if (!isString(value)) return value;
+    const normalized = normalizeText(value, options);
+    return options.emptyAsUndefined && normalized === '' ? undefined : normalized;
+  });

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '@/app.module';
 import { configureApp } from '@/app.setup';
+import { AiService } from '@/modules/ai/services/ai.service';
 import { PrismaService } from '@/prisma/prisma.service';
 
 export const WEB_ORIGIN = 'http://localhost:3000';
@@ -11,12 +12,36 @@ export const WEB_ORIGIN = 'http://localhost:3000';
 const createdEmails: string[] = [];
 const randomOctet = () => Math.floor(Math.random() * 255);
 
+/**
+ * IA simulada: nenhum e2e chama Gemini/Groq de verdade (custo, cota e resultado instável).
+ * Cada teste configura a tarefa de que precisa (`ai.extractJob.mockResolvedValue(...)`); sem configurar, a
+ * tarefa falha alto em vez de devolver `undefined` e esconder um erro.
+ */
+export type AiTaskMock = jest.Mock<Promise<unknown>, [input: Record<string, unknown>]>;
+
+export function createFakeAi() {
+  const task = (name: string): AiTaskMock =>
+    jest.fn((_input: Record<string, unknown>) => Promise.reject(new Error(`IA simulada: configure ${name} no teste`)));
+  return {
+    extractJob: task('extractJob'),
+    analyzeFit: task('analyzeFit'),
+    buildAdjusted: task('buildAdjusted'),
+    reviseResume: task('reviseResume'),
+    writeEmail: task('writeEmail'),
+    answerQuestion: task('answerQuestion'),
+  };
+}
+
 export async function createTestApp() {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const ai = createFakeAi();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(AiService)
+    .useValue(ai)
+    .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>();
   configureApp(app);
   await app.init();
-  return { app, prisma: app.get(PrismaService) };
+  return { app, prisma: app.get(PrismaService), ai };
 }
 
 /** Remove os usuários criados pelo arquivo de teste (sessões, tags e currículos saem em cascata). */

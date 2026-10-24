@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { UuidParam } from '@/common/decorators/uuid-param.decorator';
-import { TagNameDto } from './dto/tag-name.dto';
-import { TagResponseDto } from './dto/tag-response.dto';
+import { TagNameDto } from './dto/input/tag-name.dto';
+import { TagResponseDto } from './dto/output/tag-response.dto';
 import { TagsService } from './services/tags.service';
 
 @Controller('tags')

@@ -27,6 +27,33 @@ const check = (plain: object) =>
   validate(plainToInstance(Sample, plain), { whitelist: true, forbidNonWhitelisted: true });
 
 describe('validation decorators', () => {
+  describe('Trim({ emptyAsUndefined })', () => {
+    class Form {
+      @Trim({ emptyAsUndefined: true })
+      note?: string;
+    }
+    const noteOf = (value: unknown) => plainToInstance(Form, { note: value }).note;
+
+    it('texto vazio ou só com espaços vira undefined (campo não enviado)', () => {
+      expect(noteOf('')).toBeUndefined();
+      expect(noteOf('   ')).toBeUndefined();
+    });
+
+    it('texto com conteúdo é só aparado; o que não é texto passa como veio', () => {
+      expect(noteOf('  oi  ')).toBe('oi');
+      expect(noteOf(5)).toBe(5);
+      expect(noteOf(undefined)).toBeUndefined();
+    });
+
+    it('sem a opção, vazio continua vazio', () => {
+      class Plain {
+        @Trim()
+        note?: string;
+      }
+      expect(plainToInstance(Plain, { note: '  ' }).note).toBe('');
+    });
+  });
+
   it('aceita um objeto válido e aplica o Trim', async () => {
     expect(await check(valid)).toHaveLength(0);
     expect(plainToInstance(Sample, valid).label).toBe('abc');

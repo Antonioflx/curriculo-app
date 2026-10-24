@@ -1,6 +1,6 @@
 import { ResumeKind, ResumeStatus } from '@/common/enums';
-import { TagResponseDto } from '@/modules/tags/dto/tag-response.dto';
-import type { ResumeEntity, ResumeSummary } from '../types/resume.types';
+import { TagResponseDto } from '@/modules/tags/dto/output/tag-response.dto';
+import type { ResumeEntity, ResumeSummary } from '@/modules/resumes/types/resume.types';
 
 export class ResumeSummaryDto {
   id: string;

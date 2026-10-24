@@ -1,87 +1,88 @@
 import { IsEmail, IsUrl, ValidateIf } from 'class-validator';
 import { Nested, NestedList, Text, TextList } from '@/common/decorators/validation.decorators';
+import { RESUME_CONTENT_LIMITS as L } from '@/common/constants/resume-content.limits';
 
-/** Schema único do `content` do currículo (docs/produto.md). Todo texto tem limite de tamanho. */
+/** Schema único do `content` do currículo (docs/produto.md). Todo texto tem limite (`L`). */
 
 export class LinkDto {
-  @Text(50)
+  @Text(L.header.linkLabel)
   label: string;
 
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
-  @Text(300)
+  @Text(L.header.linkUrl)
   url: string;
 }
 
 export class HeaderDto {
-  @Text(100)
+  @Text(L.header.name)
   name: string;
 
-  @Text(150)
+  @Text(L.header.headline)
   headline: string;
 
-  @Text(100)
+  @Text(L.header.location)
   location: string;
 
-  @Text(30)
+  @Text(L.header.phone)
   phone: string;
 
   @IsEmail()
-  @Text(254)
+  @Text(L.header.email)
   email: string;
 
-  @NestedList(LinkDto, 10)
+  @NestedList(LinkDto, L.header.links)
   links: LinkDto[];
 }
 
 export class ExperienceDto {
-  @Text(100)
+  @Text(L.experiences.company)
   company: string;
 
-  @Text(100)
+  @Text(L.experiences.role)
   role: string;
 
-  @Text(20)
+  @Text(L.experiences.date)
   start: string;
 
   /** `null` = emprego atual. */
   @ValidateIf((experience: ExperienceDto) => experience.end !== null)
-  @Text(20)
+  @Text(L.experiences.date)
   end: string | null;
 
-  @Text(500)
+  @Text(L.experiences.context)
   context: string;
 
-  @TextList(15, 400)
+  @TextList(L.experiences.bullets, L.experiences.bullet)
   bullets: string[];
 }
 
 export class SkillGroupDto {
-  @Text(60)
+  @Text(L.skills.category)
   category: string;
 
-  @TextList(40, 60)
+  @TextList(L.skills.items, L.skills.item)
   items: string[];
 }
 
 export class EducationDto {
-  @Text(120)
+  @Text(L.education.course)
   course: string;
 
-  @Text(120)
+  @Text(L.education.institution)
   institution: string;
 
-  @Text(20)
+  @Text(L.education.date)
   start: string;
 
-  @Text(20)
+  @Text(L.education.date)
   end: string;
 }
 
 export class LanguageDto {
-  @Text(50)
+  @Text(L.languages.name)
   name: string;
 
-  @Text(50)
+  @Text(L.languages.level)
   level: string;
 }
 
@@ -89,18 +90,18 @@ export class ResumeContentDto {
   @Nested(HeaderDto)
   header: HeaderDto;
 
-  @Text(1500)
+  @Text(L.summary)
   summary: string;
 
-  @NestedList(ExperienceDto, 20)
+  @NestedList(ExperienceDto, L.experiences.max)
   experiences: ExperienceDto[];
 
-  @NestedList(SkillGroupDto, 15)
+  @NestedList(SkillGroupDto, L.skills.max)
   skills: SkillGroupDto[];
 
-  @NestedList(EducationDto, 10)
+  @NestedList(EducationDto, L.education.max)
   education: EducationDto[];
 
-  @NestedList(LanguageDto, 10)
+  @NestedList(LanguageDto, L.languages.max)
   languages: LanguageDto[];
 }
