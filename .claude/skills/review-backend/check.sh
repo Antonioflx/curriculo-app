@@ -123,7 +123,7 @@ report "16. Módulo que usa IA mas controller sem @Throttle (custo)" "$(
   for dir in $MODULE_DIRS; do
     if grep -rqE "AiService|LlmProvider" "$dir/services" 2>/dev/null; then
       for c in $(find "$dir" -maxdepth 1 -name '*.controller.ts'); do
-        grep -q "Throttle" "$c" || echo "$c"
+        grep -qE "Throttle|AiRateLimit" "$c" || echo "$c"
       done
     fi
   done
@@ -196,6 +196,19 @@ report "26. .env versionado ou segredo literal fora do .env.example" "$(
   git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'
   git grep -nIE "(SECRET|API_KEY|PASSWORD|TOKEN)[A-Z_]*=[^[:space:]]{6,}" -- . \
     ':!*.env.example' ':!*.md' ':!*.spec.ts' ':!backend/test' ':!.claude' 2>/dev/null
+)"
+
+report "27. DTO fora de dto/input ou dto/output" "$(
+  find $TARGET -path '*/dto/*' -name '*.ts' ! -path '*/dto/input/*' ! -path '*/dto/output/*' 2>/dev/null
+)"
+
+report "28. .trim() em service (normalização de entrada é do DTO: use @Trim)" "$(
+  grep -rnE '\.trim\(\)' $TARGET --include=*.service.ts | grep -v -E '\.spec\.ts|:[0-9]+:\s*(//|/\*|\*)'
+)"
+
+report "29. DTO de saída expondo campo interno (userId, rawText, passwordHash)" "$(
+  grep -rnwE 'userId|rawText|passwordHash' $TARGET --include=*.dto.ts |
+    grep '/dto/output/' | grep -v -E ':[0-9]+:\s*(//|/\*|\*)'
 )"
 
 echo "== $count achado(s) nas checagens objetivas =="

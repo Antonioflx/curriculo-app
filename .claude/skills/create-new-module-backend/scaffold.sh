@@ -34,7 +34,7 @@ CAMEL_PLURAL=$(camel "$PLURAL")
 MODEL=${3:-$CAMEL}
 CONST=$(upper_snake "$SINGULAR")
 
-mkdir -p "$MODULE_DIR"/{services,repositories,dto,constants,types} "$ROOT/test"
+mkdir -p "$MODULE_DIR"/{services,repositories,dto/input,dto/output,constants,types} "$ROOT/test"
 
 # ---------- constants ----------
 cat > "$MODULE_DIR/constants/$SINGULAR.constants.ts" <<'EOF'
@@ -69,12 +69,13 @@ export interface Update%%PASCAL%%Data {
 EOF
 
 # ---------- dto ----------
-cat > "$MODULE_DIR/dto/create-$SINGULAR.dto.ts" <<'EOF'
+cat > "$MODULE_DIR/dto/input/create-$SINGULAR.dto.ts" <<'EOF'
 import { IsNotEmpty } from 'class-validator';
 import { Text, Trim } from '@/common/decorators/validation.decorators';
 
 export class Create%%PASCAL%%Dto {
-  // TODO(scaffold): campos reais. Toda string e lista de entrada tem limite (@Text, @TextList).
+  // TODO(scaffold): campos reais. O DTO é a borda de ENTRADA: tipo, normalização (@Trim), limite de tamanho
+  // (@Text, @TextList, @ArrayMaxSize) e regras entre campos vivem aqui; o service recebe o dado já validado.
   @Trim()
   @IsNotEmpty()
   @Text(100)
@@ -82,15 +83,15 @@ export class Create%%PASCAL%%Dto {
 }
 EOF
 
-cat > "$MODULE_DIR/dto/update-$SINGULAR.dto.ts" <<'EOF'
+cat > "$MODULE_DIR/dto/input/update-$SINGULAR.dto.ts" <<'EOF'
 import { StrictPartialType } from '@/common/dto/strict-partial-type';
 import { Create%%PASCAL%%Dto } from './create-%%SINGULAR%%.dto';
 
 export class Update%%PASCAL%%Dto extends StrictPartialType(Create%%PASCAL%%Dto) {}
 EOF
 
-cat > "$MODULE_DIR/dto/$SINGULAR-response.dto.ts" <<'EOF'
-import type { %%PASCAL%%Entity } from '../types/%%SINGULAR%%.types';
+cat > "$MODULE_DIR/dto/output/$SINGULAR-response.dto.ts" <<'EOF'
+import type { %%PASCAL%%Entity } from '@/modules/%%PLURAL%%/types/%%SINGULAR%%.types';
 
 export class %%PASCAL%%ResponseDto {
   id: string;
@@ -149,8 +150,8 @@ EOF
 cat > "$MODULE_DIR/services/$PLURAL.service.ts" <<'EOF'
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { %%CONST%%_NOT_FOUND_MESSAGE } from '../constants/%%SINGULAR%%.constants';
-import { Create%%PASCAL%%Dto } from '../dto/create-%%SINGULAR%%.dto';
-import { Update%%PASCAL%%Dto } from '../dto/update-%%SINGULAR%%.dto';
+import { Create%%PASCAL%%Dto } from '../dto/input/create-%%SINGULAR%%.dto';
+import { Update%%PASCAL%%Dto } from '../dto/input/update-%%SINGULAR%%.dto';
 import { %%PASCAL_PLURAL%%Repository } from '../repositories/%%PLURAL%%.repository';
 
 /** Regra de negócio. Recebe dados já validados (DTO) e nunca usa Prisma diretamente. */
@@ -184,7 +185,7 @@ EOF
 
 cat > "$MODULE_DIR/services/$PLURAL.service.spec.ts" <<'EOF'
 import { NotFoundException } from '@nestjs/common';
-import { Create%%PASCAL%%Dto } from '../dto/create-%%SINGULAR%%.dto';
+import { Create%%PASCAL%%Dto } from '../dto/input/create-%%SINGULAR%%.dto';
 import { %%PASCAL_PLURAL%%Repository } from '../repositories/%%PLURAL%%.repository';
 import { %%PASCAL_PLURAL%%Service } from './%%PLURAL%%.service';
 
@@ -234,9 +235,9 @@ cat > "$MODULE_DIR/$PLURAL.controller.ts" <<'EOF'
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { UuidParam } from '@/common/decorators/uuid-param.decorator';
-import { Create%%PASCAL%%Dto } from './dto/create-%%SINGULAR%%.dto';
-import { %%PASCAL%%ResponseDto } from './dto/%%SINGULAR%%-response.dto';
-import { Update%%PASCAL%%Dto } from './dto/update-%%SINGULAR%%.dto';
+import { Create%%PASCAL%%Dto } from './dto/input/create-%%SINGULAR%%.dto';
+import { %%PASCAL%%ResponseDto } from './dto/output/%%SINGULAR%%-response.dto';
+import { Update%%PASCAL%%Dto } from './dto/input/update-%%SINGULAR%%.dto';
 import { %%PASCAL_PLURAL%%Service } from './services/%%PLURAL%%.service';
 
 /** HTTP apenas: recebe o DTO, chama o service e devolve o DTO de saída. Autenticada por padrão. */
@@ -372,7 +373,7 @@ if [ -z "${SCAFFOLD_ROOT:-}" ]; then
 fi
 
 echo "Módulo criado em $MODULE_DIR"
-echo "Gerados: module, controller, services/ (+spec), repositories/, dto/ (create, update, response), constants/, types/, $E2E_FILE"
+echo "Gerados: module, controller, services/ (+spec), repositories/, dto/input (create, update) e dto/output (response), constants/, types/, $E2E_FILE"
 echo
 echo "Próximos passos:"
 echo "  1. Garanta o model '$MODEL' em prisma/schema.prisma (com userId) + migration + prisma:generate."

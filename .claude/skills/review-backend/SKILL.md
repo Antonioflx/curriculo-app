@@ -18,7 +18,7 @@ Sem argumento, varre todos os módulos. Trate cada item listado como achado. O s
 ## Passo 2: julgamento (leia o código alterado)
 
 ### Padrão do projeto
-- Raiz do módulo só com `*.module.ts` e `*.controller.ts`; o resto em `services/`, `repositories/`, `dto/`, `constants/`, `types/`.
+- Raiz do módulo só com `*.module.ts` e `*.controller.ts`; o resto em `services/`, `repositories/`, `dto/input/` + `dto/output/`, `constants/`, `types/`.
 - Controller sem regra de negócio; service sem `PrismaService` nem query; repository sem regra de negócio.
 - Interface/type compartilhado em `types/`, não dentro do repository. `import type` para tipos em assinatura decorada.
 - Módulo usa outro só pelo service exportado.
@@ -26,6 +26,14 @@ Sem argumento, varre todos os módulos. Trate cada item listado como achado. O s
 - Formatação é do Biome: rode `pnpm format:check`; não comente estilo.
 - Service com `typeof`/checagem de formato em dado que veio de fora? Mova para a borda (DTO, strategy, guard) e receba o tipo certo. Reuse `@/common/utils` (`type`, `empty`, `text`, `date`, `limit`).
 - Sem `else if`/`else`: use early return. O script lista ocorrências (item 23).
+- Métodos de service que devolvem promise são `async` (erro de validação sempre vira rejeição, nunca throw síncrono).
+- Log não repassa `requestId`/`userId`: o `AppLogger` os anexa pelo contexto da requisição.
+
+### Entrada e saída (DTO)
+- **O DTO é a borda.** Entrada em `dto/input/` (class-validator): tipo, normalização (`@Trim`), limite de tamanho, formato e regras entre campos (upload: `@IsImageUpload` + `FileToBody`). Saída em `dto/output/`: dado enxuto, mapeado com `from()`, sem `userId`, `passwordHash`, texto bruto nem campo interno.
+- O service recebe o dado já validado e não repete `typeof`, `.trim()`, tamanho ou formato (itens 28 e 29 do script). Quem chama o `AiService` valida no próprio DTO; o `AiService` só valida a SAÍDA do modelo.
+- Listagem devolve resumo (sem campos pesados); detalhe devolve o completo.
+- Todo DTO de entrada tem spec com os casos recusados e o e2e prova que o inválido não chega ao service. Pré-condição de negócio (ex.: "tem currículo base?") não é entrada: fica no service de quem chama.
 
 ### Repetição (compare com o que já existe)
 Antes de aprovar código novo, procure se já existe algo igual: `grep` em `common/`, `prisma/` e nos outros módulos.

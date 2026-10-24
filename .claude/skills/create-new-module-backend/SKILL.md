@@ -16,7 +16,7 @@ O padrão está no `CLAUDE.md` (Backend). Esta skill transforma esse padrão em 
    bash .claude/skills/create-new-module-backend/scaffold.sh <plural-kebab> <singular-kebab> [model-prisma]
    # ex.: scaffold.sh job-postings job-posting jobPosting
    ```
-   Gera `modules/<plural>/` com `module`, `controller`, `services/` (+ spec), `repositories/`, `dto/` (create, update, response), `constants/`, `types/` e `test/<plural>.e2e-spec.ts`. Recusa se o módulo já existir.
+   Gera `modules/<plural>/` com `module`, `controller`, `services/` (+ spec), `repositories/`, `dto/input/` (create, update) e `dto/output/` (response), `constants/`, `types/` e `test/<plural>.e2e-spec.ts`. Recusa se o módulo já existir.
 4. **Adapte tudo que está marcado `TODO(scaffold)`:** campos de `types/`, DTOs, mensagens, e2e e specs. O esqueleto usa `name` como campo de exemplo.
 5. **Registre** o módulo em `backend/src/app.module.ts` (`imports`).
 6. **Escreva a regra de negócio** no service e os testes dela (ver "Regras do padrão").
@@ -27,11 +27,11 @@ O padrão está no `CLAUDE.md` (Backend). Esta skill transforma esse padrão em 
 
 ## Regras do padrão (resumo)
 
-- Raiz do módulo só com `*.module.ts` e `*.controller.ts`; o resto em `services/`, `repositories/`, `dto/`, `constants/`, `types/` (só as pastas usadas; `strategies/` só onde fizer sentido). Spec ao lado do arquivo testado.
+- Raiz do módulo só com `*.module.ts` e `*.controller.ts`; o resto em `services/`, `repositories/`, `dto/input/` + `dto/output/`, `constants/`, `types/` (só as pastas usadas; `strategies/` só onde fizer sentido). Spec ao lado do arquivo testado.
 - **Controller:** só HTTP. `@CurrentUser('userId')` (nunca `userId` do body), `@UuidParam()`, responde sempre por DTO de saída. Rota é autenticada por padrão; `@Public()` só com motivo.
-- **Service:** regra de negócio; sem `PrismaService`, sem query. Recebe dado já validado (DTO/borda), sem `typeof` repetido. Outro módulo só pelo **service exportado**. Limites com `assertBelowLimit`.
+- **Service:** regra de negócio; sem `PrismaService`, sem query. Recebe dado já validado pelo DTO/pipe: não repete `typeof`, `.trim()`, tamanho nem formato. Pré-condição de negócio (ex.: "tem currículo base?") fica aqui, com mensagem útil. Outro módulo só pelo **service exportado**. Limites com `assertBelowLimit`.
 - **Repository:** único que fala com o Prisma. **Toda query filtra `userId`** (modelo filho: pela relação com o dono). Listas com `take`. Mais de uma escrita → `$transaction`. Erros com `@HandlePrismaErrors(...)`, nunca `try/catch`. Interface compartilhada vai em `types/` (`import type` em parâmetro decorado).
-- **DTO:** decorators de `@/common/decorators/validation.decorators` (`@Text`, `@TextList`, `@Nested`, `@NestedList`, `@Trim`); toda string/lista com limite; update com `StrictPartialType` (recusa `null`, ao contrário do `PartialType`).
+- **DTO (a borda):** entrada em `dto/input/`, saída em `dto/output/`. decorators de `@/common/decorators/validation.decorators` (`@Text`, `@TextList`, `@Nested`, `@NestedList`, `@Trim`); toda string/lista com limite; update com `StrictPartialType` (recusa `null`, ao contrário do `PartialType`).
 - Enums do Prisma só por `@/common/enums`; nunca importar de `@/generated` fora do repository.
 - Logs só pelo `AppLogger` (`@/core/logger`), com ids; nunca conteúdo de currículo/vaga.
 - Reuso: `@/common/utils` (`type`, `empty`, `text`, `date`, `limit`); sem `else if`, use early return.
@@ -47,3 +47,9 @@ O padrão está no `CLAUDE.md` (Backend). Esta skill transforma esse padrão em 
 ## Saída para o usuário
 
 Curta: módulo criado, rotas, regras implementadas, o que ficou pendente e resultado das verificações. Pergunte se pode commitar.
+
+## Entrada e saída (DTO)
+
+- **Entrada = dado validado.** Tudo que vem do usuário passa por um DTO de `dto/input/` antes de chegar ao service (e à IA): tipo, normalização (`@Trim`), limite de tamanho (constantes em `@/common/constants/input-limits`), formato e regras entre campos (`@ValidateIf`). Upload: `FileInterceptor` + `FileToBody('image')` + `@IsImageUpload()`, para a imagem ser validada no DTO como qualquer campo.
+- **Saída = dado enxuto.** `dto/output/` mapeia com `from()` só o que o cliente usa: sem `userId`, `passwordHash`, texto bruto nem campo interno; listagem devolve resumo, detalhe devolve o completo.
+- Todo DTO de entrada tem spec com os casos recusados (vazio, acima do limite, tipo errado, campo desconhecido) e o e2e mostra que o dado inválido não chega ao service nem à IA. Rota que chama IA leva `@AiRateLimit()`.
