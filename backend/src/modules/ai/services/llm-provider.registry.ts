@@ -7,7 +7,7 @@ import type { LlmProvider, LlmProviderName } from '../types/llm.types';
 
 /**
  * Monta a cadeia de providers de uma chamada: o principal (o do `@LlmTask` ou `LLM_PROVIDER`) e, depois,
- * o `LLM_FALLBACK_PROVIDER`, se houver. Quem não aceita imagem sai da cadeia quando o pedido leva imagem.
+ * o `LLM_FALLBACK_PROVIDER`, se houver. Quem não aceita imagem nem PDF sai da cadeia quando o pedido leva um deles.
  */
 @Injectable()
 export class LlmProviderRegistry {
@@ -25,11 +25,11 @@ export class LlmProviderRegistry {
     ]);
   }
 
-  chain(preferred?: LlmProviderName, needsImage = false): LlmProvider[] {
+  chain(preferred?: LlmProviderName, needsAttachment = false): LlmProvider[] {
     const names = [preferred ?? this.config.get('LLM_PROVIDER'), this.config.get('LLM_FALLBACK_PROVIDER')];
     const chain = [...new Set(names)]
       .map((name) => (name ? this.providers.get(name) : undefined))
-      .filter((provider): provider is LlmProvider => !!provider && (!needsImage || provider.supportsImages));
+      .filter((provider): provider is LlmProvider => !!provider && (!needsAttachment || provider.supportsImages));
 
     if (chain.length === 0) throw new ServiceUnavailableException(AI_UNAVAILABLE_MESSAGE);
     return chain;

@@ -74,6 +74,17 @@ describe('GeminiProvider', () => {
     });
   });
 
+  it('PDF vai como inlineData antes do texto', async () => {
+    generateContent.mockResolvedValue(reply());
+    await build().provider.generateJson(
+      makeRequest(60_000, { document: { mimeType: 'application/pdf', data: Buffer.from('%PDF') } }),
+    );
+    expect(generateContent.mock.calls[0][0].contents[0].parts).toEqual([
+      { inlineData: { mimeType: 'application/pdf', data: Buffer.from('%PDF').toString('base64') } },
+      { text: 'usuário' },
+    ]);
+  });
+
   it('sem imagem manda só o texto', async () => {
     generateContent.mockResolvedValue(reply());
     await build().provider.generateJson(makeRequest());

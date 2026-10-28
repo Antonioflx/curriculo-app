@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import { ResumeKind } from '@/common/enums';
+import { htmlToText } from '@/common/utils/html-text.utils';
 import { assertBelowLimit } from '@/common/utils/limit.utils';
+import { detectResumeFileKind } from '@/common/utils/resume-file.utils';
 import { AiService } from '@/modules/ai/services/ai.service';
 import { type ResumeContent, resumeContentSchema } from '@/modules/ai/schemas/resume-content.schema';
 import { TagsService } from '@/modules/tags/services/tags.service';
@@ -14,6 +16,7 @@ import {
   RESUME_TITLE_MAX,
 } from '../constants/resume.constants';
 import { CreateResumeDto } from '../dto/input/create-resume.dto';
+import { ImportResumeDto } from '../dto/input/import-resume.dto';
 import { ListResumesQueryDto } from '../dto/input/list-resumes-query.dto';
 import { ReviseResumeDto } from '../dto/input/revise-resume.dto';
 import { UpdateResumeDto } from '../dto/input/update-resume.dto';
@@ -31,6 +34,17 @@ export class ResumesService {
     await this.assertUnderLimit(userId);
     const tagIds = await this.tags.assertOwned(userId, dto.tagIds ?? []);
     return this.resumes.create(userId, { title: dto.title, content: instanceToPlain(dto.content), tagIds });
+  }
+
+  /** Lê o PDF ou HTML com a IA e devolve o `content` como rascunho; nada é salvo até o usuário criar o currículo. */
+  async importFile(dto: ImportResumeDto) {
+    const { mimeType, data } = dto.file;
+    const input =
+      detectResumeFileKind(data) === 'pdf'
+        ? { document: { mimeType, data } }
+        : { text: htmlToText(data.toString('utf8')) };
+    const { data: content } = await this.ai.extractResume(input);
+    return content;
   }
 
   list(userId: string, query: ListResumesQueryDto) {

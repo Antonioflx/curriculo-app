@@ -20,7 +20,7 @@ describe('ResumesService', () => {
     delete: jest.fn(),
   };
   const tags = { assertOwned: jest.fn() };
-  const ai = { reviseResume: jest.fn() };
+  const ai = { reviseResume: jest.fn(), extractResume: jest.fn() };
   const service = new ResumesService(
     repository as unknown as ResumesRepository,
     tags as unknown as TagsService,
@@ -139,6 +139,34 @@ describe('ResumesService', () => {
       repository.findById.mockResolvedValue(source);
       repository.countBase.mockResolvedValue(MAX_BASE_RESUMES_PER_USER);
       await expect(service.duplicate('u1', 'r1')).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('importFile', () => {
+    const pdfFile = { mimeType: 'application/pdf', data: Buffer.from('%PDF-1.7 conteudo') };
+    const htmlFile = {
+      mimeType: 'text/html',
+      data: Buffer.from('<html><body><p>Antonio</p><strong>40%</strong></body></html>'),
+    };
+
+    beforeEach(() => ai.extractResume.mockResolvedValue({ data: resumeContent, usage: {} }));
+
+    it('PDF vai à IA como documento e devolve o content, sem salvar', async () => {
+      const content = await service.importFile({ file: pdfFile });
+
+      expect(ai.extractResume).toHaveBeenCalledWith({ document: pdfFile });
+      expect(content).toBe(resumeContent);
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it('HTML vai à IA como texto limpo', async () => {
+      await service.importFile({ file: htmlFile });
+      expect(ai.extractResume).toHaveBeenCalledWith({ text: 'Antonio\n**40%**' });
+    });
+
+    it('se a IA falha, o erro sobe', async () => {
+      ai.extractResume.mockRejectedValue(new Error('IA fora'));
+      await expect(service.importFile({ file: pdfFile })).rejects.toThrow('IA fora');
     });
   });
 

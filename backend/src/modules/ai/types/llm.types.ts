@@ -7,11 +7,18 @@ export interface LlmImage {
   data: Buffer;
 }
 
+/** Documento anexo (PDF) que o modelo lê direto. */
+export interface LlmDocument {
+  mimeType: string;
+  data: Buffer;
+}
+
 /** Pedido genérico a um LLM: o mesmo para qualquer provider. */
 export interface LlmRequest {
   system: string;
   user: string;
   image?: LlmImage;
+  document?: LlmDocument;
   /** JSON Schema da saída esperada (já filtrado para o subconjunto aceito pelos providers). */
   jsonSchema: object;
   temperature?: number;
@@ -35,7 +42,7 @@ export interface LlmResponse extends LlmUsage {
 
 export interface LlmProvider {
   readonly name: LlmProviderName;
-  /** Aceita imagem no pedido? Quem não aceita fica fora da cadeia quando a tarefa envia imagem. */
+  /** Aceita imagem ou PDF no pedido? Quem não aceita fica fora da cadeia quando a tarefa envia um deles. */
   readonly supportsImages: boolean;
   /** Lança `LlmUnavailableError` quando não há capacidade/acesso (permite tentar o próximo provider). */
   generateJson(request: LlmRequest): Promise<LlmResponse>;

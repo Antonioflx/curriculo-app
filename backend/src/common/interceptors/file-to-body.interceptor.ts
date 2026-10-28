@@ -9,10 +9,15 @@ export const IMAGE_UPLOAD_OPTIONS = {
   limits: { fileSize: INPUT_LIMITS.imageBytes, files: 1, fields: 4, fieldSize: INPUT_LIMITS.jobText * 4 },
 };
 
+/** Opções do `FileInterceptor` para um currículo (PDF ou HTML) só, em memória, com o teto de tamanho. */
+export const RESUME_UPLOAD_OPTIONS = {
+  limits: { fileSize: INPUT_LIMITS.resumeFileBytes, files: 1, fields: 2 },
+};
+
 /**
  * Passa o arquivo recebido pelo `FileInterceptor` para dentro do body, no campo informado, como
- * `UploadedImage`. Assim a imagem é validada pelo DTO como qualquer outro campo (`@IsImageUpload()`),
- * junto das regras entre campos. Use logo depois do `FileInterceptor`.
+ * `{ mimeType, data }`. Assim o arquivo é validado pelo DTO como qualquer outro campo (`@IsImageUpload()`,
+ * `@IsResumeUpload()`), junto das regras entre campos. Use logo depois do `FileInterceptor`.
  */
 export function FileToBody(field: string): Type<NestInterceptor> {
   @Injectable()

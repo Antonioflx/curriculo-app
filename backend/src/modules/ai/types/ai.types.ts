@@ -1,7 +1,7 @@
 import type { WritingTone } from '@/common/enums';
 import type { ExtractedJob } from '../schemas/extract-job.schema';
 import type { ResumeContent } from '../schemas/resume-content.schema';
-import type { LlmImage, LlmUsage } from './llm.types';
+import type { LlmDocument, LlmImage, LlmUsage } from './llm.types';
 
 export interface AiResult<T> {
   data: T;
@@ -11,6 +11,12 @@ export interface AiResult<T> {
 export interface ExtractJobInput {
   text?: string;
   image?: LlmImage;
+}
+
+/** Currículo existente: o texto (de um HTML) ou o PDF. Quem chama garante que há um dos dois. */
+export interface ExtractResumeInput {
+  text?: string;
+  document?: LlmDocument;
 }
 
 export interface CandidateResume {

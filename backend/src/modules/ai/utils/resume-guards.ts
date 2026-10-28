@@ -18,3 +18,30 @@ export function findChangedExperience(base: ResumeContent, adjusted: ResumeConte
   });
   return changed === -1 ? null : `experiência ${changed} mudou (empresa, cargo ou datas)`;
 }
+
+/**
+ * Habilidade nova só entra se o usuário a mostrou: o item precisa já aparecer no currículo base ou nas
+ * respostas dele. O modelo costuma "completar" as habilidades com palavras-chave da vaga (ex.: Linux) que o
+ * usuário não tem. Remove esses itens (e categorias que ficarem vazias) e devolve quais saíram, só para o log.
+ */
+export function removeInventedSkills(
+  base: ResumeContent,
+  adjusted: ResumeContent,
+  userAnswers: string[],
+): { content: ResumeContent; removed: string[] } {
+  const known = [JSON.stringify(base), ...userAnswers].join('\n').toLowerCase();
+  const removed: string[] = [];
+
+  const skills = adjusted.skills
+    .map((skill) => ({
+      ...skill,
+      items: skill.items.filter((item) => {
+        if (known.includes(item.toLowerCase())) return true;
+        removed.push(item);
+        return false;
+      }),
+    }))
+    .filter((skill) => skill.items.length > 0);
+
+  return { content: { ...adjusted, skills }, removed };
+}

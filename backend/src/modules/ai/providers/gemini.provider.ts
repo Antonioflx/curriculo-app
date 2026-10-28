@@ -148,12 +148,12 @@ export class GeminiProvider implements LlmProvider {
 
   private sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-  /** Imagem primeiro, depois o texto (ordem recomendada para entrada multimodal). */
+  /** Imagem ou PDF primeiro, depois o texto (ordem recomendada para entrada multimodal). */
   private toParts(request: LlmRequest): Part[] {
-    const parts: Part[] = [];
-    if (request.image) {
-      parts.push({ inlineData: { mimeType: request.image.mimeType, data: request.image.data.toString('base64') } });
-    }
+    const attachments = [request.image, request.document].filter((file) => file !== undefined);
+    const parts: Part[] = attachments.map(({ mimeType, data }) => ({
+      inlineData: { mimeType, data: data.toString('base64') },
+    }));
     parts.push({ text: request.user });
     return parts;
   }

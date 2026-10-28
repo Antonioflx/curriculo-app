@@ -24,6 +24,7 @@ export function createFakeAi() {
     jest.fn((_input: Record<string, unknown>) => Promise.reject(new Error(`IA simulada: configure ${name} no teste`)));
   return {
     extractJob: task('extractJob'),
+    extractResume: task('extractResume'),
     analyzeFit: task('analyzeFit'),
     buildAdjusted: task('buildAdjusted'),
     reviseResume: task('reviseResume'),

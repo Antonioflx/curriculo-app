@@ -16,6 +16,7 @@ export const AI_INVALID_RESPONSE_MESSAGE = 'Resposta da IA inválida';
 
 export const AI_TASKS = [
   'extractJob',
+  'extractResume',
   'analyzeFit',
   'buildAdjusted',
   'reviseResume',

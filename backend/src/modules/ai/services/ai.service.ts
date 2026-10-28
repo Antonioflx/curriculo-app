@@ -15,6 +15,7 @@ import { analyzeFitPrompt } from '../prompts/analyze-fit.prompt';
 import { answerQuestionPrompt } from '../prompts/answer-question.prompt';
 import { buildAdjustedPrompt } from '../prompts/build-adjusted.prompt';
 import { extractJobPrompt } from '../prompts/extract-job.prompt';
+import { extractResumePrompt } from '../prompts/extract-resume.prompt';
 import { reviseResumePrompt } from '../prompts/revise-resume.prompt';
 import { writeEmailPrompt } from '../prompts/write-email.prompt';
 import { buildAnalyzeFitSchema } from '../schemas/analyze-fit.schema';
@@ -27,12 +28,13 @@ import type {
   AnswerQuestionInput,
   BuildAdjustedInput,
   ExtractJobInput,
+  ExtractResumeInput,
   ReviseResumeInput,
   WriteEmailInput,
 } from '../types/ai.types';
-import type { LlmImage, LlmProvider, LlmRequest } from '../types/llm.types';
+import type { LlmDocument, LlmImage, LlmProvider, LlmRequest } from '../types/llm.types';
 import { toLlmJsonSchema } from '../utils/json-schema';
-import { findChangedExperience } from '../utils/resume-guards';
+import { findChangedExperience, removeInventedSkills } from '../utils/resume-guards';
 import { LlmProviderRegistry } from './llm-provider.registry';
 
 type AiTaskName = (typeof AI_TASKS)[number];
@@ -42,6 +44,7 @@ interface TaskCall<T> {
   user: string;
   schema: z.ZodType<T>;
   image?: LlmImage;
+  document?: LlmDocument;
 }
 
 /**
@@ -70,6 +73,16 @@ export class AiService {
     });
   }
 
+  @LlmTask({ temperature: 0, topK: 1 })
+  async extractResume(input: ExtractResumeInput) {
+    return this.run('extractResume', {
+      system: extractResumePrompt.system,
+      user: extractResumePrompt.buildUser(input.text ?? '', !!input.document),
+      document: input.document,
+      schema: resumeContentSchema,
+    });
+  }
+
   @LlmTask({ temperature: 0.2 })
   async analyzeFit(input: AnalyzeFitInput) {
     const resumeIds = input.resumes.map((resume) => resume.id) as [string, ...string[]];
@@ -91,7 +104,16 @@ export class AiService {
     // Ajuste muda ênfase, não fatos: experiências inventadas ou alteradas derrubam a resposta.
     const problem = findChangedExperience(input.baseContent, result.data);
     if (problem) this.rejectResponse('buildAdjusted', problem);
-    return result;
+
+    // Habilidade que o usuário não mostrou não entra, mesmo que a vaga peça (regra 2: lacuna não vira mentira).
+    const { content, removed } = removeInventedSkills(
+      input.baseContent,
+      result.data,
+      input.answered.map(({ answer }) => answer),
+    );
+    if (removed.length > 0)
+      this.logger.warn('ai_invented_skills_removed', { task: 'buildAdjusted', count: removed.length });
+    return { ...result, data: content };
   }
 
   @LlmTask({ temperature: 0.2 })
@@ -123,12 +145,13 @@ export class AiService {
 
   private async run<T>(task: AiTaskName, call: TaskCall<T>): Promise<AiResult<T>> {
     const options = getLlmTaskOptions(AiService.prototype, task);
-    const chain = this.providers.chain(options.provider, !!call.image);
+    const chain = this.providers.chain(options.provider, !!(call.image || call.document));
     const startedAt = Date.now();
     const request: LlmRequest = {
       system: call.system,
       user: call.user,
       image: call.image,
+      document: call.document,
       jsonSchema: toLlmJsonSchema(call.schema),
       temperature: options.temperature,
       topK: options.topK,

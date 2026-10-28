@@ -22,6 +22,8 @@ describe('resumeContentSchema (Zod) × ResumeContentDto (class-validator)', () =
     ['bullet acima do limite', withExperience({ bullets: ['x'.repeat(L.experiences.bullet + 1)] }), false],
     ['bullets demais', withExperience({ bullets: Array(L.experiences.bullets + 1).fill('a') }), false],
     ['resumo acima do limite', { ...resumeContent, summary: 'x'.repeat(L.summary + 1) }, false],
+    ['sem e-mail (string vazia)', { ...resumeContent, header: { ...resumeContent.header, email: '' } }, true],
+    ['e-mail ausente (undefined)', { ...resumeContent, header: { ...resumeContent.header, email: undefined } }, false],
     ['e-mail inválido', { ...resumeContent, header: { ...resumeContent.header, email: 'não-é-email' } }, false],
     [
       'link javascript:',

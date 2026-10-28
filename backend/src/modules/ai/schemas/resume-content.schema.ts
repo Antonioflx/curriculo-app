@@ -9,7 +9,8 @@ export const resumeContentSchema = z.object({
     headline: str(L.header.headline),
     location: str(L.header.location),
     phone: str(L.header.phone),
-    email: z.email().max(L.header.email),
+    // Opcional: string vazia = sem e-mail. A regra fica num refine para o JSON Schema do modelo continuar `string`.
+    email: str(L.header.email).refine((email) => email === '' || z.email().safeParse(email).success),
     links: z
       .array(z.object({ label: str(L.header.linkLabel), url: z.url({ protocol: /^https?$/ }).max(L.header.linkUrl) }))
       .max(L.header.links),

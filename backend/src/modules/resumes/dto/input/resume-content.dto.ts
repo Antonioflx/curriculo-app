@@ -26,6 +26,8 @@ export class HeaderDto {
   @Text(L.header.phone)
   phone: string;
 
+  /** Opcional: string vazia = sem e-mail. Se houver, precisa ser válido. */
+  @ValidateIf((header: HeaderDto) => header.email !== '')
   @IsEmail()
   @Text(L.header.email)
   email: string;
