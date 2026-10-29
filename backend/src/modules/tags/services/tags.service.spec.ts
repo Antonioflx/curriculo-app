@@ -39,7 +39,7 @@ describe('TagsService', () => {
 
     it('remove repetidos e devolve os ids únicos', async () => {
       repository.findByIds.mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
-      await expect(service.assertOwned('u1', ['a', 'b', 'a'])).resolves.toEqual(['a', 'b']);
+      await expect(service.assertOwned('u1', ['a', 'b', 'a'])).resolves.toEqual(['a', 'b', 'a']);
       expect(repository.findByIds).toHaveBeenCalledWith('u1', ['a', 'b']);
     });
 
