@@ -1,12 +1,14 @@
 # Fases do backend, chamadas pelo ci.yml. Rodam em paralelo; o CI só avisa, nunca corrige.
 name: backend
 
+# Workflow reutilizável: só roda quando outro workflow o chama
 on:
   workflow_call:
 
 permissions:
   contents: read
 
+# Variáveis para todos os jobs
 env:
   NODE_ENV: test
   WEB_ORIGIN: http://localhost:3000
@@ -15,31 +17,37 @@ env:
   JWT_SECRET: ci-only-secret-with-at-least-32-characters
 
 jobs:
+  # Formatação, lint e vulnerabilidades
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # evita job travado consumindo minutos
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-      - run: pnpm --filter backend prisma:generate
+      - uses: actions/checkout@v4 # baixa o código
+      - uses: ./.github/actions/setup # pnpm + Node + dependências
+      - run: pnpm --filter backend prisma:generate # o client do Prisma não vem no git
       - name: Formatação (Biome)
         run: pnpm format:check
       - name: Lint (ESLint)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() }} # roda mesmo se o passo anterior falhou, para mostrar todas as falhas de uma vez
         run: pnpm lint
       - name: Vulnerabilidades (alta ou crítica)
         if: ${{ !cancelled() }}
         run: pnpm audit --prod --audit-level high
 
+  # Compila o TypeScript
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - run: pnpm --filter backend prisma:generate
       - run: pnpm build
 
+  # Testes unitários (Jest)
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
