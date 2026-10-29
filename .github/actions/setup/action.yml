@@ -2,7 +2,7 @@ name: setup
 description: pnpm + Node + dependências (o checkout fica no workflow, porque esta action vem do repositório)
 
 runs:
-  using: composite
+  using: composite # action feita só de passos de shell
   steps:
     - uses: pnpm/action-setup@v4
       with:
@@ -10,6 +10,7 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: 24
-        cache: pnpm
+        cache: pnpm # reaproveita o cache do pnpm entre runs
+    # Falha se o pnpm-lock.yaml não bater com o package.json
     - run: pnpm install --frozen-lockfile
-      shell: bash
+      shell: bash # obrigatório em passos `run` de action composite

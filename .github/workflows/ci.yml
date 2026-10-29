@@ -1,29 +1,35 @@
+# Ponto de entrada do CI: decide o que rodar conforme os arquivos alterados no PR.
 name: ci
 
+# Só roda em pull request para a main (push direto não dispara)
 on:
   pull_request:
     branches: [main]
 
+# O GITHUB_TOKEN só lê o repositório (menor privilégio)
 permissions:
   contents: read
 
+# Um push novo na mesma branch cancela o run anterior
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Descobre se o PR mexeu em algo do backend
   changes:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: read # o paths-filter lista os arquivos do PR pela API
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
+      backend: ${{ steps.filter.outputs.backend }} # 'true' ou 'false'
     steps:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
+            # Arquivos globais: mudar qualquer um deles afeta todos os apps (&shared é uma âncora YAML)
             shared: &shared
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -31,11 +37,13 @@ jobs:
               - '.npmrc'
               - '.github/actions/**'
               - '.github/workflows/ci.yml'
+            # Backend mudou se mexeu no shared (*shared reusa a âncora), na pasta ou no workflow dele
             backend:
               - *shared
               - 'backend/**'
               - '.github/workflows/_backend.yml'
 
+  # Chama o workflow reutilizável do backend; pulado quando nada do backend mudou
   backend:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
@@ -45,10 +53,12 @@ jobs:
   # failure/cancelled reprova.
   ci-ok:
     needs: [changes, backend]
-    if: always()
+    if: always() # roda mesmo se um job anterior falhou, para poder reprovar
     runs-on: ubuntu-latest
     steps:
       - run: |
+          # imprime o resultado de cada job (depuração)
           echo '${{ toJSON(needs) }}'
+          # reprova se algum job falhou ou foi cancelado; 'skipped' passa
           test "${{ contains(needs.*.result, 'failure') }}" = "false"
           test "${{ contains(needs.*.result, 'cancelled') }}" = "false"
