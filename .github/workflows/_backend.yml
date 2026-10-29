@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15 # evita job travado consumindo minutos
     steps:
-      - uses: actions/checkout@v4 # baixa o código
+      - uses: actions/checkout@v7 # baixa o código
       - uses: ./.github/actions/setup # pnpm + Node + dependências
       - run: pnpm --filter backend prisma:generate # o client do Prisma não vem no git
       - name: Formatação (Biome)
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm --filter backend prisma:generate
       - run: pnpm build
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: pnpm --filter backend prisma:generate
       - run: pnpm test
