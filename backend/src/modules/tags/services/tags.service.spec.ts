@@ -42,7 +42,7 @@ describe('TagsService', () => {
       await expect(service.assertOwned('u1', ['a', 'b', 'a'])).resolves.toEqual(['a', 'b']);
       expect(repository.findByIds).toHaveBeenCalledWith('u1', ['a', 'b']);
     });
-
+    // comentarios
     it('404 se alguma tag não é do usuário', async () => {
       repository.findByIds.mockResolvedValue([{ id: 'a' }]);
       await expect(service.assertOwned('u1', ['a', 'b'])).rejects.toBeInstanceOf(NotFoundException);
